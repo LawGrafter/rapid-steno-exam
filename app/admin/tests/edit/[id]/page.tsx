@@ -83,10 +83,10 @@ export default function EditTestPage() {
     points: 1,
     negative_points: 0,
     options: [
-      { label: '', is_correct: false, order_index: 0 },
-      { label: '', is_correct: false, order_index: 1 },
-      { label: '', is_correct: false, order_index: 2 },
-      { label: '', is_correct: false, order_index: 3 }
+      { id: '', label: '', is_correct: false, order_index: 0 },
+      { id: '', label: '', is_correct: false, order_index: 1 },
+      { id: '', label: '', is_correct: false, order_index: 2 },
+      { id: '', label: '', is_correct: false, order_index: 3 }
     ]
   })
 
@@ -304,10 +304,10 @@ export default function EditTestPage() {
       points: 1,
       negative_points: 0,
       options: [
-        { label: '', is_correct: false, order_index: 0 },
-        { label: '', is_correct: false, order_index: 1 },
-        { label: '', is_correct: false, order_index: 2 },
-        { label: '', is_correct: false, order_index: 3 }
+        { id: '', label: '', is_correct: false, order_index: 0 },
+        { id: '', label: '', is_correct: false, order_index: 1 },
+        { id: '', label: '', is_correct: false, order_index: 2 },
+        { id: '', label: '', is_correct: false, order_index: 3 }
       ]
     })
   }

@@ -114,7 +114,7 @@ export default function TestPage() {
       setQuestions(questionsData || [])
 
       // Step 3: Create or get existing attempt
-      let attemptId
+      let attemptId: string
       const { data: existingAttempt } = await supabase
         .from('attempts')
         .select('id')
