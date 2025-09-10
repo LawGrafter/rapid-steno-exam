@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { supabase } from '@/lib/supabase'
-import { ArrowLeft, Download, Eye, BarChart3, Search, Filter, X } from 'lucide-react'
+import { ArrowLeft, Download, Eye, BarChart3, Search, Filter, X, Trash2 } from 'lucide-react'
 
 type AttemptWithDetails = {
   id: string
@@ -141,6 +141,28 @@ export default function ResultsPage() {
     setSearchQuery('')
     setDateFrom('')
     setDateTo('')
+  }
+
+  const deleteAttempt = async (attemptId: string, studentName: string, testTitle: string) => {
+    if (!confirm(`Are you sure you want to delete ${studentName}'s attempt for "${testTitle}"? This will allow them to retake the test. This action cannot be undone.`)) {
+      return
+    }
+
+    try {
+      const { error } = await supabase
+        .from('attempts')
+        .delete()
+        .eq('id', attemptId)
+
+      if (error) throw error
+      
+      // Refresh the data
+      await fetchData()
+      alert(`Attempt deleted successfully. ${studentName} can now retake "${testTitle}".`)
+    } catch (error) {
+      console.error('Error deleting attempt:', error)
+      alert('Error deleting attempt. Please try again.')
+    }
   }
 
   const exportResults = async () => {
@@ -421,12 +443,23 @@ export default function ResultsPage() {
                             {getStatusBadge(attempt.status, attempt.submitted_at)}
                           </td>
                           <td className="py-3 px-2">
-                            <Link href={`/admin/results/${attempt.id}`}>
-                              <Button variant="outline" size="sm">
-                                <Eye className="h-3 w-3 mr-1" />
-                                Details
+                            <div className="flex items-center gap-2">
+                              <Link href={`/admin/results/${attempt.id}`}>
+                                <Button variant="outline" size="sm">
+                                  <Eye className="h-3 w-3 mr-1" />
+                                  Details
+                                </Button>
+                              </Link>
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => deleteAttempt(attempt.id, attempt.users?.full_name || 'Unknown', attempt.tests?.title || 'Unknown Test')}
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                                title="Delete attempt - Allow student to retake test"
+                              >
+                                <Trash2 className="h-3 w-3" />
                               </Button>
-                            </Link>
+                            </div>
                           </td>
                         </tr>
                       )

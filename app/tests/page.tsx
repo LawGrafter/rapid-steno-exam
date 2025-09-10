@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { supabase } from '@/lib/supabase'
 import { getCurrentUser, logout } from '@/lib/auth'
-import { Clock, Calendar, FileText, LogOut, Search, Building, Cpu, Shirt, Lock } from 'lucide-react'
+import { Clock, Calendar, FileText, LogOut, Search, Building, Cpu, Shirt, Lock, AlertTriangle, X } from 'lucide-react'
 
 type Test = {
   id: string
@@ -47,6 +47,8 @@ export default function TestsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [user, setUser] = useState<any>(null)
   const [isClient, setIsClient] = useState(false)
+  const [showTestConfirmation, setShowTestConfirmation] = useState(false)
+  const [selectedTestId, setSelectedTestId] = useState<string | null>(null)
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -185,12 +187,8 @@ export default function TestsPage() {
   }
 
   const getTestStatus = (test: Test) => {
-    // Get the most recent attempt for this test
+    // Get all attempts for this test
     const testAttempts = attempts.filter(a => a.test_id === test.id)
-    const latestAttempt = testAttempts.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())[0]
-    
-    // Check if there's any submitted attempt
-    const hasSubmittedAttempt = testAttempts.some(a => a.status === 'submitted')
     
     if (test.status === 'draft') {
       return { label: 'Not Available', color: 'bg-gray-500', canStart: false }
@@ -200,19 +198,37 @@ export default function TestsPage() {
       return { label: 'Coming Soon', color: 'bg-blue-500', canStart: false }
     }
     
-    if (latestAttempt?.status === 'active') {
-      return { label: 'Resume Test', color: 'bg-orange-500', canStart: true }
-    }
-    
+    // Check if there's any submitted attempt (completed test)
+    const hasSubmittedAttempt = testAttempts.some(a => a.status === 'submitted')
     if (hasSubmittedAttempt) {
       return { label: 'Test Submitted', color: 'bg-green-500', canStart: false }
+    }
+    
+    // Check if there's an active attempt (in progress)
+    const hasActiveAttempt = testAttempts.some(a => a.status === 'active')
+    if (hasActiveAttempt) {
+      return { label: 'Resume Test', color: 'bg-orange-500', canStart: true }
     }
     
     return { label: 'Start Test', color: 'bg-[#002E2C]', canStart: true }
   }
 
   const handleStartTest = (testId: string) => {
-    router.push(`/test/${testId}`)
+    setSelectedTestId(testId)
+    setShowTestConfirmation(true)
+  }
+
+  const handleConfirmStartTest = () => {
+    if (selectedTestId) {
+      router.push(`/test/${selectedTestId}`)
+    }
+    setShowTestConfirmation(false)
+    setSelectedTestId(null)
+  }
+
+  const handleCancelStartTest = () => {
+    setShowTestConfirmation(false)
+    setSelectedTestId(null)
   }
 
   const getCategoryIcon = (categoryName: string) => {
@@ -237,16 +253,24 @@ export default function TestsPage() {
   }
 
   const getTestsForCategory = (categoryId: string) => {
-    const category = categories.find(cat => cat.id === categoryId)
-    if (!category) return []
+    const categoryTests = tests.filter(test => test.category === categories.find(c => c.id === categoryId)?.name)
     
-    return tests.filter(test => {
-      const testCategory = test.category || 'General'
-      return testCategory.toLowerCase() === category.name.toLowerCase()
-    })
+    if (!searchQuery) return categoryTests
+    
+    return categoryTests.filter(test => 
+      test.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      test.description.toLowerCase().includes(searchQuery.toLowerCase())
+    )
   }
 
-  // Removed retake functionality
+  const getFilteredCategories = () => {
+    if (!searchQuery) return filteredCategories
+    
+    return filteredCategories.filter(category =>
+      category.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      category.description.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+  }
 
   // Prevent hydration mismatch
   if (!isClient || !user) return null
@@ -276,6 +300,18 @@ export default function TestsPage() {
               </p>
             </div>
             <div className="flex items-center gap-2 sm:gap-4 flex-wrap">
+              {/* Search Box */}
+              <div className="relative flex-1 max-w-md">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder={selectedCategory ? "Search tests..." : "Search categories..."}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#002E2C] focus:border-transparent bg-white/80 backdrop-blur-sm text-sm placeholder-gray-500"
+                />
+              </div>
+              
               {selectedCategory && (
                 <Button
                   onClick={handleBackToCategories}
@@ -356,11 +392,11 @@ export default function TestsPage() {
 
             {/* Categories Count */}
             <div className="mb-6">
-              <p className="text-sm text-gray-600">Showing {filteredCategories.length} categories</p>
+              <p className="text-sm text-gray-600">Showing {getFilteredCategories().length} categories</p>
             </div>
 
             {/* Categories Grid */}
-            {filteredCategories.length === 0 ? (
+            {getFilteredCategories().length === 0 ? (
               <div className="text-center py-16 bg-white/95 backdrop-blur-lg rounded-xl shadow-lg border border-[#002E2C]/10">
                 <FileText className="h-16 w-16 text-gray-400 mx-auto mb-6" />
                 <h3 className="text-xl font-semibold text-[#002E2C] mb-3">No categories found</h3>
@@ -368,7 +404,7 @@ export default function TestsPage() {
               </div>
             ) : (
               <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-                {filteredCategories.map((category) => (
+                {getFilteredCategories().map((category) => (
                   <Card key={category.id} className="bg-white/95 backdrop-blur-lg border-2 border-[#002E2C]/10 hover:border-[#002E2C]/30 hover:shadow-2xl transition-all duration-300 cursor-pointer group transform hover:scale-105">
                     <CardHeader className="text-center pb-4 relative overflow-hidden">
                       <div className="absolute inset-0 bg-gradient-to-br from-cyan-50/50 to-blue-50/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
@@ -417,43 +453,56 @@ export default function TestsPage() {
                         const status = getTestStatus(test)
                         
                         return (
-                          <Card key={test.id} className="bg-white/95 backdrop-blur-lg border-2 border-[#002E2C]/10 hover:border-[#002E2C]/30 hover:shadow-2xl transition-all duration-300 group transform hover:scale-105">
-                            <CardHeader className="pb-4 relative overflow-hidden">
-                              <div className="absolute inset-0 bg-gradient-to-br from-cyan-50/30 to-blue-50/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                              <div className="flex items-start justify-between relative z-10">
-                                <div className="flex-1">
-                                  <CardTitle className="text-lg mb-2 text-[#002E2C] font-bold">{test.title}</CardTitle>
-                                  <CardDescription className="text-sm text-gray-600 leading-relaxed">
-                                    {test.description}
-                                  </CardDescription>
-                                </div>
-                                <Badge className={`${status.color} text-white text-xs font-semibold px-3 py-1 rounded-full shadow-sm`}>
-                                  {status.label}
-                                </Badge>
+                          <div key={test.id} className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 border border-white/20">
+                            {/* Header Section */}
+                            <div className="mb-8">
+                              <h3 className="font-bold text-2xl text-gray-900 leading-tight mb-4">{test.title}</h3>
+                              <div className="inline-flex items-center px-4 py-2 rounded-full bg-gradient-to-r from-blue-50 to-emerald-50 border border-blue-200">
+                                <span className="text-sm font-medium text-[#002E2C]">{test.category}</span>
                               </div>
-                            </CardHeader>
-                            <CardContent className="pt-0 relative z-10">
-                              <div className="flex items-center gap-6 text-sm text-gray-600 mb-6 bg-gray-50/80 rounded-lg p-3">
-                                <div className="flex items-center gap-2">
-                                  <Clock className="h-4 w-4 text-[#002E2C]" />
-                                  <span className="font-medium">{test.duration_minutes} min</span>
+                            </div>
+
+                            {/* Description */}
+                            <div className="mb-6">
+                              <p className="text-gray-700 text-base leading-relaxed">{test.description}</p>
+                            </div>
+                            
+                            {/* Test Details */}
+                            <div className="flex items-center gap-6 mb-6 p-4 bg-gradient-to-r from-gray-50 to-blue-50 rounded-xl border border-gray-200">
+                              <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
+                                  <Clock className="h-4 w-4 text-blue-600" />
                                 </div>
-                                <div className="flex items-center gap-2">
-                                  <FileText className="h-4 w-4 text-[#002E2C]" />
-                                  <span className="font-medium">{test.question_count || 0} questions</span>
+                                <div>
+                                  <p className="text-xs text-gray-500 uppercase tracking-wide">Duration</p>
+                                  <p className="font-semibold text-gray-900">{test.duration_minutes} min</p>
                                 </div>
                               </div>
-                              
-                              {status.canStart && (
-                                <Button
-                                  onClick={() => handleStartTest(test.id)}
-                                  className="w-full bg-gradient-to-r from-[#002E2C] to-[#004A47] hover:from-[#004A47] hover:to-[#002E2C] text-white font-semibold py-3 px-6 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg"
-                                >
-                                  {status.label}
-                                </Button>
-                              )}
-                            </CardContent>
-                          </Card>
+                              <div className="w-px h-8 bg-gray-300"></div>
+                              <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
+                                  <FileText className="h-4 w-4 text-emerald-600" />
+                                </div>
+                                <div>
+                                  <p className="text-xs text-gray-500 uppercase tracking-wide">Questions</p>
+                                  <p className="font-semibold text-gray-900">{test.question_count || 0}</p>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            {/* Action Button */}
+                            <button
+                              onClick={() => getTestStatus(test).canStart && handleStartTest(test.id)}
+                              disabled={!getTestStatus(test).canStart}
+                              className={`w-full py-4 px-6 rounded-xl font-semibold text-lg transition-all duration-200 ${
+                                getTestStatus(test).canStart
+                                  ? 'bg-gradient-to-r from-[#002E2C] to-emerald-600 hover:from-[#003d3a] hover:to-emerald-700 text-white shadow-lg hover:shadow-xl transform hover:-translate-y-0.5'
+                                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                              }`}
+                            >
+                              {getTestStatus(test).label}
+                            </button>
+                          </div>
                         )
                       })}
                     </div>
@@ -464,6 +513,66 @@ export default function TestsPage() {
           </>
         )}
       </main>
+
+      {/* Test Confirmation Modal */}
+      {showTestConfirmation && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 overflow-hidden">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-orange-500 to-red-500 p-4 text-white">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
+                  <AlertTriangle className="h-5 w-5" />
+                </div>
+                <h3 className="font-bold text-lg">⚠️ Important Instructions</h3>
+                <button
+                  onClick={handleCancelStartTest}
+                  className="ml-auto w-8 h-8 bg-white/20 rounded-full flex items-center justify-center hover:bg-white/30 transition-colors"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="p-6">
+              <div className="space-y-4 mb-6">
+                <div className="flex items-start gap-3 p-3 bg-red-50 rounded-lg border border-red-200">
+                  <div className="w-2 h-2 bg-red-500 rounded-full mt-2 flex-shrink-0"></div>
+                  <p className="text-gray-800 text-sm">Timer will start immediately and cannot be paused.</p>
+                </div>
+                
+                <div className="flex items-start gap-3 p-3 bg-orange-50 rounded-lg border border-orange-200">
+                  <div className="w-2 h-2 bg-orange-500 rounded-full mt-2 flex-shrink-0"></div>
+                  <p className="text-gray-800 text-sm">Do not refresh or close the window during the test.</p>
+                </div>
+                
+                <div className="flex items-start gap-3 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                  <div className="w-2 h-2 bg-yellow-500 rounded-full mt-2 flex-shrink-0"></div>
+                  <p className="text-gray-800 text-sm">Test will auto-submit when time ends.</p>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-3">
+                <Button
+                  onClick={handleCancelStartTest}
+                  variant="outline"
+                  className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-50"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleConfirmStartTest}
+                  className="flex-1 bg-gradient-to-r from-[#002E2C] to-emerald-600 hover:from-[#003d3a] hover:to-emerald-700 text-white"
+                >
+                  I Agree - Start Test
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
