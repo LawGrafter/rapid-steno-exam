@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
+import Head from 'next/head'
 
 export default function HomePage() {
   const router = useRouter()
@@ -29,7 +30,11 @@ export default function HomePage() {
   }, [router])
 
   return (
-    <div className="min-h-screen relative overflow-hidden flex items-center justify-center">
+    <>
+      <Head>
+        <title>Welcome - Rapid Steno Exam</title>
+      </Head>
+      <div className="min-h-screen relative overflow-hidden flex items-center justify-center">
       {/* Animated Background */}
       <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-blue-50 to-emerald-50">
         <div className="absolute top-10 left-10 w-72 h-72 bg-gradient-to-r from-blue-400/20 to-emerald-400/20 rounded-full blur-3xl animate-pulse"></div>
@@ -46,7 +51,7 @@ export default function HomePage() {
 
         {/* Loading Text */}
         <p className="text-slate-600 mb-8 text-lg font-medium animate-pulse">
-          Taking you to Rapid Steno...
+          Taking you to Rapid Steno Ride...
         </p>
 
         {/* Progress Bar */}
@@ -74,5 +79,6 @@ export default function HomePage() {
         </div>
       </div>
     </div>
+    </>
   )
 }

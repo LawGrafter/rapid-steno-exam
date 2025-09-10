@@ -11,6 +11,7 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { supabase } from '@/lib/supabase'
 import { getCurrentUser, logout } from '@/lib/auth'
 import { Clock, Calendar, FileText, LogOut, Search, Building, Cpu, Shirt, Lock, AlertTriangle, X } from 'lucide-react'
+import Head from 'next/head'
 
 type Test = {
   id: string
@@ -284,7 +285,11 @@ export default function TestsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-cyan-50 via-blue-50 to-emerald-50 font-lexend">
+    <>
+      <Head>
+        <title>{selectedCategory ? 'Tests' : 'Test Categories'} - Rapid Steno Exam</title>
+      </Head>
+      <div className="min-h-screen bg-gradient-to-br from-cyan-50 via-blue-50 to-emerald-50 font-lexend">
       <header className="bg-white/95 backdrop-blur-lg shadow-lg border-b border-[#002E2C]/10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -574,5 +579,6 @@ export default function TestsPage() {
         </div>
       )}
     </div>
+    </>
   )
 }

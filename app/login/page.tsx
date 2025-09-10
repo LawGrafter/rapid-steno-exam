@@ -5,10 +5,13 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { supabase } from '@/lib/supabase'
+import { Eye, EyeOff, User, Lock } from 'lucide-react'
+import Head from 'next/head'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { validateStudentLogin, createSession } from '@/lib/auth'
-import { ExternalLink, Crown, Mail, User, Sparkles } from 'lucide-react'
+import { ExternalLink, Crown, Mail, Sparkles, Check } from 'lucide-react'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -16,6 +19,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [showSubscriptionDialog, setShowSubscriptionDialog] = useState(false)
+  const [showSuccessPopup, setShowSuccessPopup] = useState(false)
   const router = useRouter()
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -26,8 +30,13 @@ export default function LoginPage() {
     const result = await validateStudentLogin(email, fullName)
     
     if (result.success && result.user) {
-      await createSession(result.user)
-      router.push('/tests')
+      createSession(result.user)
+      setShowSuccessPopup(true)
+      
+      // Redirect after showing success animation
+      setTimeout(() => {
+        router.push('/tests')
+      }, 2000)
     } else {
       // Show subscription dialog instead of error message
       setShowSubscriptionDialog(true)
@@ -37,7 +46,11 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-cyan-50 via-blue-50 to-emerald-50 flex items-center justify-center p-4 relative overflow-hidden font-lexend">
+    <>
+      <Head>
+        <title>Login - Rapid Steno Exam</title>
+      </Head>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-emerald-50 relative overflow-hidden flex items-center justify-center p-4 font-lexend">
       {/* Animated background elements */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-cyan-400 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob"></div>
@@ -160,6 +173,47 @@ export default function LoginPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Success Popup */}
+      {showSuccessPopup && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full mx-4 overflow-hidden animate-in zoom-in-95 duration-300">
+            {/* Success Animation */}
+            <div className="p-8 text-center">
+              <div className="mx-auto mb-6 relative">
+                {/* Animated Circle */}
+                <div className="w-20 h-20 mx-auto bg-gradient-to-r from-green-400 to-emerald-500 rounded-full flex items-center justify-center relative overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-r from-green-400 to-emerald-500 rounded-full animate-ping opacity-75"></div>
+                  <div className="relative z-10">
+                    <Check className="h-10 w-10 text-white animate-in zoom-in-50 duration-500 delay-300" />
+                  </div>
+                </div>
+                
+                {/* Success Sparkles */}
+                <div className="absolute -top-2 -right-2 animate-bounce delay-500">
+                  <Sparkles className="h-6 w-6 text-yellow-400" />
+                </div>
+                <div className="absolute -bottom-2 -left-2 animate-bounce delay-700">
+                  <Sparkles className="h-4 w-4 text-emerald-400" />
+                </div>
+              </div>
+              
+              <h3 className="text-2xl font-bold text-gray-900 mb-2 animate-in slide-in-from-bottom-4 duration-500 delay-200">
+                Authentication Successful!
+              </h3>
+              <p className="text-gray-600 animate-in slide-in-from-bottom-4 duration-500 delay-300">
+                Welcome back! Redirecting to your dashboard...
+              </p>
+              
+              {/* Progress Bar */}
+              <div className="mt-6 w-full bg-gray-200 rounded-full h-1 overflow-hidden">
+                <div className="h-full bg-gradient-to-r from-green-400 to-emerald-500 rounded-full animate-pulse transition-all duration-2000 ease-out w-full"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+    </>
   )
 }

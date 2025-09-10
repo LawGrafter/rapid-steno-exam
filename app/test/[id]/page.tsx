@@ -338,8 +338,8 @@ export default function TestPage() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Question Content - First on mobile */}
-          <div className="order-1 lg:order-2 lg:col-span-2">
+          {/* Question Content - First on mobile, Left on desktop */}
+          <div className="order-1 lg:order-1 lg:col-span-2">
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">
@@ -417,8 +417,8 @@ export default function TestPage() {
             </Card>
           </div>
 
-          {/* Question Navigation - Second on mobile */}
-          <div className="order-2 lg:order-1 lg:col-span-1">
+          {/* Question Navigation - Second on mobile, Right on desktop */}
+          <div className="order-2 lg:order-2 lg:col-span-1">
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm">Question Navigation</CardTitle>
@@ -434,10 +434,10 @@ export default function TestPage() {
                         variant="outline"
                         className={`h-8 w-8 p-0 ${
                           index === currentQuestionIndex 
-                            ? 'bg-[#002E2C] text-white border-[#002E2C] hover:bg-[#002E2C]/90' 
+                            ? 'bg-[#002E2C] text-white border-[#002E2C] hover:bg-[#002E2C]/90 hover:text-white' 
                             : hasAnswer 
-                              ? 'bg-green-100 border-green-300 text-green-700' 
-                              : 'hover:bg-gray-50'
+                              ? 'bg-green-100 border-green-300 text-green-700 hover:bg-green-200 hover:text-green-800' 
+                              : 'hover:bg-gray-50 hover:text-gray-900'
                         }`}
                         onClick={() => setCurrentQuestionIndex(index)}
                       >
