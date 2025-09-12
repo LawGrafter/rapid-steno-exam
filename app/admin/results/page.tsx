@@ -26,7 +26,12 @@ type AttemptWithDetails = {
   tests: {
     title: string
     category: string
+    questions?: Array<{ id: string }>
   }
+  answers?: Array<{
+    is_correct: boolean
+    chosen_option_id: string
+  }>
 }
 
 type Test = {
@@ -75,13 +80,18 @@ export default function ResultsPage() {
       const uniqueCategories = Array.from(categorySet)
       setCategories(uniqueCategories)
 
-      // Use the same query pattern that works in analytics page
+      // Fetch attempts with test questions and answers to get total count
       const { data: attemptsData, error: attemptsError } = await supabase
         .from('attempts')
         .select(`
           *,
           users (full_name),
-          tests (title, category)
+          tests (
+            title, 
+            category,
+            questions (id)
+          ),
+          answers (is_correct, chosen_option_id)
         `)
         .order('started_at', { ascending: false })
 
@@ -397,7 +407,6 @@ export default function ResultsPage() {
                       <th className="text-left py-3 px-2 font-medium text-gray-700">Test</th>
                       <th className="text-left py-3 px-2 font-medium text-gray-700">Category</th>
                       <th className="text-left py-3 px-2 font-medium text-gray-700">Started</th>
-                      <th className="text-left py-3 px-2 font-medium text-gray-700">Submitted</th>
                       <th className="text-left py-3 px-2 font-medium text-gray-700">Duration</th>
                       <th className="text-left py-3 px-2 font-medium text-gray-700">Score</th>
                       <th className="text-left py-3 px-2 font-medium text-gray-700">Status</th>
@@ -428,16 +437,12 @@ export default function ResultsPage() {
                             {new Date(attempt.started_at).toLocaleString()}
                           </td>
                           <td className="py-3 px-2 text-gray-600">
-                            {attempt.submitted_at 
-                              ? new Date(attempt.submitted_at).toLocaleString()
-                              : '-'
-                            }
-                          </td>
-                          <td className="py-3 px-2 text-gray-600">
                             {attempt.submitted_at ? `${timeTaken} min` : '-'}
                           </td>
                           <td className="py-3 px-2">
-                            <span className="font-medium text-gray-900">{scoreFormat}</span>
+                            <span className="font-medium text-gray-900">
+                              {scoreFormat}/{attempt.tests?.questions?.length || attempt.answers?.length || 0}
+                            </span>
                           </td>
                           <td className="py-3 px-2">
                             {getStatusBadge(attempt.status, attempt.submitted_at)}

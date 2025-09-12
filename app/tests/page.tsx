@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { supabase } from '@/lib/supabase'
 import { getCurrentUser, logout } from '@/lib/auth'
-import { Clock, Calendar, FileText, LogOut, Search, Building, Cpu, Shirt, Lock, AlertTriangle, X } from 'lucide-react'
+import { Search, ArrowLeft, Lock, User, LogOut, Menu, X, Clock, Calendar, FileText, Building, Cpu, Shirt, AlertTriangle } from 'lucide-react'
 import Head from 'next/head'
 
 type Test = {
@@ -44,6 +44,8 @@ export default function TestsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedFilter, setSelectedFilter] = useState('all')
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  const [selectedTest, setSelectedTest] = useState<Test | null>(null)
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [attempts, setAttempts] = useState<Attempt[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [user, setUser] = useState<any>(null)
@@ -71,25 +73,18 @@ export default function TestsPage() {
     fetchAttempts()
   }, [user, isClient])
 
-  // Filter categories based on search and filter
+  // Filter categories based on filter
   useEffect(() => {
     if (!categories.length) return
 
     let filtered = categories
 
-    if (searchQuery) {
-      filtered = filtered.filter(category => 
-        category.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        category.description.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    }
-
     if (selectedFilter !== 'all') {
-      // Add filter logic if needed
+      filtered = categories.filter(category => category.id === selectedFilter)
     }
 
     setFilteredCategories(filtered)
-  }, [categories, searchQuery, selectedFilter])
+  }, [categories, selectedFilter])
 
   // Handle URL parameters for direct category access
   useEffect(() => {
@@ -265,12 +260,7 @@ export default function TestsPage() {
   }
 
   const getFilteredCategories = () => {
-    if (!searchQuery) return filteredCategories
-    
-    return filteredCategories.filter(category =>
-      category.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      category.description.toLowerCase().includes(searchQuery.toLowerCase())
-    )
+    return filteredCategories
   }
 
   // Prevent hydration mismatch
@@ -290,30 +280,34 @@ export default function TestsPage() {
         <title>{selectedCategory ? 'Tests' : 'Test Categories'} - Rapid Steno Exam</title>
       </Head>
       <div className="min-h-screen bg-gradient-to-br from-cyan-50 via-blue-50 to-emerald-50 font-lexend">
-      <header className="bg-white/95 backdrop-blur-lg shadow-lg border-b border-[#002E2C]/10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="flex-1 min-w-0">
-              <h1 className="text-2xl sm:text-3xl font-bold text-[#002E2C] mb-1 sm:mb-2 truncate">
-                {selectedCategory ? 'Tests' : 'Test Categories'}
-              </h1>
-              <p className="text-sm sm:text-base text-gray-600 truncate">
-                {selectedCategory 
-                  ? `Showing tests for ${categories.find(c => c.id === selectedCategory)?.name}` 
-                  : `Welcome, ${user.full_name}`
-                }
-              </p>
+      <header className="bg-white/95 backdrop-blur-lg border-b border-[#002E2C]/10 sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Single Line Header */}
+          <div className="flex items-center justify-between py-4">
+            {/* Left Side - Title and Welcome */}
+            <div className="flex items-center gap-4">
+              <div>
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Tests</h1>
+                <p className="text-sm text-gray-600 hidden sm:block">
+                  {selectedCategory 
+                    ? `Showing tests for ${categories.find(c => c.id === selectedCategory)?.name}` 
+                    : `Welcome, ${user.full_name}`
+                  }
+                </p>
+              </div>
             </div>
-            <div className="flex items-center gap-2 sm:gap-4 flex-wrap">
+
+            {/* Center - Search and Back Button */}
+            <div className="flex items-center gap-3 flex-1 max-w-md mx-4">
               {/* Search Box */}
-              <div className="relative flex-1 max-w-md">
+              <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <input
                   type="text"
                   placeholder={selectedCategory ? "Search tests..." : "Search categories..."}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#002E2C] focus:border-transparent bg-white/80 backdrop-blur-sm text-sm placeholder-gray-500"
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#002E2C] focus:border-transparent bg-white/80 backdrop-blur-sm text-sm placeholder-gray-500"
                 />
               </div>
               
@@ -322,35 +316,103 @@ export default function TestsPage() {
                   onClick={handleBackToCategories}
                   variant="outline"
                   size="sm"
-                  className="flex items-center gap-1 sm:gap-2 border-[#002E2C] text-[#002E2C] hover:bg-[#002E2C] hover:text-white transition-all duration-200 text-xs sm:text-sm px-2 sm:px-3"
+                  className="flex items-center gap-2 border-[#002E2C] text-[#002E2C] hover:bg-[#002E2C] hover:text-white transition-all duration-200 text-sm px-3 py-2 whitespace-nowrap"
                 >
-                  <span className="hidden sm:inline">← Back to Categories</span>
-                  <span className="sm:hidden">← Back</span>
+                  <span className="hidden sm:inline">← Back</span>
+                  <span className="sm:hidden">←</span>
                 </Button>
               )}
+            </div>
+            
+            {/* Desktop Navigation - Hidden on Mobile */}
+            <div className="hidden md:flex items-center gap-3">
               <Button
+                onClick={() => {
+                  // Materials functionality - disabled for now
+                }}
                 disabled
                 variant="outline"
                 size="sm"
-                className="flex items-center gap-1 sm:gap-2 bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-yellow-400 cursor-not-allowed relative overflow-hidden text-xs sm:text-sm px-2 sm:px-3"
-                title="Coming Soon - Materials feature will be available soon!"
+                className="flex items-center gap-2 border-2 border-orange-400 text-orange-600 bg-orange-50 cursor-not-allowed text-sm px-4 py-2 font-semibold"
               >
-                <div className="absolute inset-0 bg-gradient-to-r from-yellow-200/10 to-orange-200/10 animate-pulse"></div>
-                <Lock className="h-3 w-3 sm:h-4 sm:w-4 text-black relative z-10" />
-                <span className="relative z-10 font-bold text-black">Materials</span>
-                <Badge className="ml-1 text-xs bg-yellow-600 text-white border-0 relative z-10 animate-bounce hidden sm:inline-flex">
-                  Coming Soon
+                <Lock className="h-4 w-4" />
+                Materials
+                <Badge className="ml-2 text-xs bg-orange-500 text-white animate-pulse">
+                  Soon
                 </Badge>
+              </Button>
+              <Button
+                onClick={() => router.push('/account')}
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-2 border-gray-300 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-all duration-200 text-sm px-4 py-2"
+              >
+                <User className="h-4 w-4" />
+                My Account
               </Button>
               <Button
                 onClick={logout}
                 variant="outline"
                 size="sm"
-                className="flex items-center gap-1 sm:gap-2 border-[#002E2C] text-[#002E2C] hover:bg-[#002E2C] hover:text-white transition-all duration-200 text-xs sm:text-sm px-2 sm:px-3"
+                className="flex items-center gap-2 border-gray-300 text-gray-700 hover:bg-red-50 hover:text-red-600 transition-all duration-200 text-sm px-4 py-2"
               >
-                <LogOut className="h-3 w-3 sm:h-4 sm:w-4" />
-                <span className="hidden sm:inline">Logout</span>
+                <LogOut className="h-4 w-4" />
+                Logout
               </Button>
+            </div>
+
+            {/* Mobile Hamburger Menu - Hidden on Desktop */}
+            <div className="relative md:hidden">
+              <Button
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-2 border-gray-300 text-gray-700 hover:bg-gray-100 transition-all duration-200 text-sm px-4 py-2"
+              >
+                {isMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+              </Button>
+
+              {/* Dropdown Menu */}
+              {isMenuOpen && (
+                <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+                  <div className="py-2">
+                    <button
+                      onClick={() => {
+                        setIsMenuOpen(false)
+                        // Materials functionality - disabled for now
+                      }}
+                      disabled
+                      className="w-full px-4 py-2 text-left text-sm text-orange-600 bg-orange-50 hover:bg-orange-100 flex items-center gap-2 cursor-not-allowed font-semibold border-l-4 border-orange-400"
+                    >
+                      <Lock className="h-4 w-4" />
+                      Materials
+                      <Badge className="ml-auto text-xs bg-orange-500 text-white animate-pulse">
+                        Coming Soon
+                      </Badge>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setIsMenuOpen(false)
+                        router.push('/account')
+                      }}
+                      className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2"
+                    >
+                      <User className="h-4 w-4" />
+                      My Account
+                    </button>
+                    <button
+                      onClick={() => {
+                        setIsMenuOpen(false)
+                        logout()
+                      }}
+                      className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-red-50 hover:text-red-600 flex items-center gap-2"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      Logout
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -360,38 +422,31 @@ export default function TestsPage() {
         {!selectedCategory ? (
           // Categories View
           <>
-            {/* Search and Filter Bar */}
-            <div className="mb-8 bg-white/95 backdrop-blur-lg rounded-xl shadow-lg border border-[#002E2C]/10 p-6">
-              <div className="flex flex-col md:flex-row gap-4">
-                <div className="flex-1 relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
-                  <Input
-                    placeholder="Search categories..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 border-2 border-gray-200 focus:border-[#002E2C] focus:ring-[#002E2C]/20 transition-all duration-200"
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <Select value={selectedFilter} onValueChange={setSelectedFilter}>
-                    <SelectTrigger className="w-48 border-2 border-gray-200 focus:border-[#002E2C]">
-                      <SelectValue placeholder="All Categories" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Categories</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Button
-                    onClick={() => {
-                      setSearchQuery('')
-                      setSelectedFilter('all')
-                    }}
-                    variant="outline"
-                    className="whitespace-nowrap border-[#002E2C] text-[#002E2C] hover:bg-[#002E2C] hover:text-white transition-all duration-200"
-                  >
-                    Clear Filters
-                  </Button>
-                </div>
+            {/* Filter Bar */}
+            <div className="mb-8 flex justify-end">
+              <div className="flex gap-2">
+                <Select value={selectedFilter} onValueChange={setSelectedFilter}>
+                  <SelectTrigger className="w-48 border-2 border-gray-200 focus:border-[#002E2C]">
+                    <SelectValue placeholder="All Categories" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Categories</SelectItem>
+                    {categories.map((category) => (
+                      <SelectItem key={category.id} value={category.id}>
+                        {category.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  onClick={() => {
+                    setSelectedFilter('all')
+                  }}
+                  variant="outline"
+                  className="whitespace-nowrap border-[#002E2C] text-[#002E2C] hover:bg-[#002E2C] hover:text-white transition-all duration-200"
+                >
+                  Clear Filters
+                </Button>
               </div>
             </div>
 

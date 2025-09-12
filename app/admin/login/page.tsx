@@ -8,8 +8,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 
 export default function AdminLoginPage() {
-  const [email, setEmail] = useState('admin@rapidsteno.com')
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [birthday, setBirthday] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const router = useRouter()
@@ -20,11 +21,11 @@ export default function AdminLoginPage() {
     setError('')
 
     // Simple admin login for demo - in production use proper authentication
-    if (email === 'admin@rapidsteno.com' && password === 'admin123') {
+    if (email === 'admin@rapidsteno.com' && password === 'admin123' && birthday === '3010') {
       localStorage.setItem('adminUser', JSON.stringify({ email, role: 'admin' }))
       router.push('/admin/dashboard')
     } else {
-      setError('Invalid admin credentials')
+      setError('Invalid admin credentials or birthday')
     }
     
     setIsLoading(false)
@@ -50,7 +51,7 @@ export default function AdminLoginPage() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@rapidsteno.com"
+                placeholder="Enter your email"
                 required
                 className="w-full"
               />
@@ -71,6 +72,26 @@ export default function AdminLoginPage() {
               />
             </div>
 
+            <div className="space-y-2">
+              <label htmlFor="birthday" className="text-sm font-medium text-gray-700">
+                Aquib's Birthday
+              </label>
+              <Input
+                id="birthday"
+                type="number"
+                value={birthday}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/\D/g, '').slice(0, 4)
+                  setBirthday(value)
+                }}
+                placeholder="____"
+                maxLength={4}
+                pattern="[0-9]{4}"
+                required
+                className="w-full text-center text-lg tracking-widest"
+              />
+            </div>
+
             {error && (
               <div className="p-3 bg-red-50 border border-red-200 rounded-md">
                 <p className="text-sm text-red-600">{error}</p>
@@ -79,7 +100,7 @@ export default function AdminLoginPage() {
 
             <Button
               type="submit"
-              disabled={isLoading || !email || !password}
+              disabled={isLoading || !email || !password || !birthday}
               className="w-full bg-slate-800 hover:bg-slate-900"
             >
               {isLoading ? (

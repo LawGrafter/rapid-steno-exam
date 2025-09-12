@@ -21,6 +21,9 @@ interface TestResult {
     title: string
     description: string
     duration_minutes: number
+    questions: Array<{
+      id: string
+    }>
   }
   answers: Array<{
     question_id: string
@@ -69,7 +72,12 @@ export default function SubmittedPage() {
         .from('attempts')
         .select(`
           *,
-          test:tests(title, description, duration_minutes),
+          test:tests(
+            title, 
+            description, 
+            duration_minutes,
+            questions(id)
+          ),
           answers(
             question_id,
             chosen_option_id,
@@ -308,10 +316,10 @@ export default function SubmittedPage() {
     )
   }
 
-  const totalQuestions = testResult.answers.length
+  const totalQuestions = testResult.test.questions?.length || testResult.answers.length
   const correctAnswers = testResult.answers.filter(a => a.is_correct).length
   const incorrectAnswers = testResult.answers.filter(a => !a.is_correct && a.chosen_option_id).length
-  const unanswered = testResult.answers.filter(a => !a.chosen_option_id).length
+  const unanswered = totalQuestions - testResult.answers.length
   
   const percentage = Math.round((testResult.total_score / totalQuestions) * 100)
   const grade = percentage >= 90 ? 'Excellent' : percentage >= 75 ? 'Good' : percentage >= 60 ? 'Average' : 'Needs Improvement'
@@ -339,7 +347,7 @@ export default function SubmittedPage() {
           <Card>
             <CardContent className="p-4 text-center">
               <Target className="h-6 w-6 text-blue-500 mx-auto mb-1" />
-              <div className="text-lg md:text-xl font-bold text-blue-600">{testResult.total_score}/{totalQuestions}</div>
+              <div className="text-2xl font-bold text-blue-600">{testResult.total_score}/{totalQuestions}</div>
               <p className="text-xs text-gray-600">Score</p>
             </CardContent>
           </Card>
