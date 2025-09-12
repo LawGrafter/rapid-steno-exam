@@ -269,10 +269,6 @@ export default function MyAccountPage() {
                   <FileText className="h-4 w-4 mr-2" />
                   Browse Tests
                 </Button>
-                <Button variant="outline" onClick={() => router.push('/submitted')}>
-                  <Trophy className="h-4 w-4 mr-2" />
-                  Latest Result
-                </Button>
               </div>
             </CardContent>
           </Card>
