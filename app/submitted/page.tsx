@@ -409,19 +409,30 @@ export default function SubmittedPage() {
         {/* Action Buttons - Modern Style */}
         <div className="flex gap-2 mb-4">
           <Button
-            onClick={() => router.push('/tests')}
+            onClick={() => router.push((user as any).user_type === 'demo' ? '/tests?demo=true' : '/tests')}
             className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white border-0 shadow-md"
           >
             Back to Tests
           </Button>
           
-          <Button
-            onClick={() => window.open('https://t.me/rapidsteno', '_blank')}
-            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white border-0 shadow-md"
-          >
-            <ExternalLink className="h-4 w-4 mr-2" />
-            Telegram Channel
-          </Button>
+          {/* Show Buy Gold Pass button for demo users */}
+          {(user as any).user_type === 'demo' ? (
+            <Button
+              onClick={() => window.open('https://rapidsteno.com/how-to-pay', '_blank')}
+              className="flex-1 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white border-0 shadow-md font-semibold"
+            >
+              <Trophy className="h-4 w-4 mr-2" />
+              Buy Gold Pass
+            </Button>
+          ) : (
+            <Button
+              onClick={() => window.open('https://t.me/rapidsteno', '_blank')}
+              className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white border-0 shadow-md"
+            >
+              <ExternalLink className="h-4 w-4 mr-2" />
+              Telegram Channel
+            </Button>
+          )}
         </div>
 
         {/* Detailed Questions Review */}

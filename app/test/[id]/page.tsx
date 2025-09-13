@@ -246,9 +246,32 @@ export default function TestPage() {
       setShowConfetti(true)
       
       // Play success sound effect
-      const audio = new Audio('/sounds/success-celebration.mp3')
-      audio.volume = 0.5
-      audio.play().catch(e => console.log('Audio play failed:', e))
+      try {
+        const audio = new Audio('https://raw.githubusercontent.com/LawGrafter/rapid-steno-exam/master/Public/sounds/success-celebration.mp3')
+        audio.volume = 0.5
+        
+        // Preload and handle user interaction requirement
+        audio.load()
+        
+        // Modern browsers require user interaction before playing audio
+        const playPromise = audio.play()
+        
+        if (playPromise !== undefined) {
+          playPromise
+            .then(() => {
+              console.log('Success sound played successfully')
+            })
+            .catch(error => {
+              console.log('Audio play failed - this is normal on some browsers:', error)
+              // Fallback: try to play after a small delay
+              setTimeout(() => {
+                audio.play().catch(e => console.log('Retry audio play failed:', e))
+              }, 100)
+            })
+        }
+      } catch (error) {
+        console.log('Audio initialization failed:', error)
+      }
       
       setTimeout(() => {
         router.push('/submitted')
