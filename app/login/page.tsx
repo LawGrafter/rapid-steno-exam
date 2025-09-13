@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { supabase } from '@/lib/supabase'
-import { Eye, EyeOff, User, Lock } from 'lucide-react'
+import { Eye, EyeOff, User, Lock, TestTube } from 'lucide-react'
 import Head from 'next/head'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
@@ -20,6 +20,9 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [showSubscriptionDialog, setShowSubscriptionDialog] = useState(false)
   const [showSuccessPopup, setShowSuccessPopup] = useState(false)
+  const [showDemoDialog, setShowDemoDialog] = useState(false)
+  const [demoName, setDemoName] = useState('')
+  const [isDemoLoading, setIsDemoLoading] = useState(false)
   const router = useRouter()
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -43,6 +46,51 @@ export default function LoginPage() {
     }
     
     setIsLoading(false)
+  }
+
+  const handleDemoAccess = () => {
+    setShowDemoDialog(true)
+  }
+
+  const handleDemoLogin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsDemoLoading(true)
+    
+    try {
+      // Create a demo user session
+      const demoUser = {
+        id: `demo_${Date.now()}`,
+        email: `demo_${Date.now()}@demo.com`,
+        full_name: demoName,
+        role: 'student' as const,
+        user_type: 'demo',
+        created_at: new Date().toISOString()
+      }
+      
+      // Save demo user info to local storage for tracking
+      const demoUsers = JSON.parse(localStorage.getItem('demo_users') || '[]')
+      demoUsers.push({
+        name: demoName,
+        timestamp: new Date().toISOString(),
+        id: demoUser.id
+      })
+      localStorage.setItem('demo_users', JSON.stringify(demoUsers))
+      
+      // Create session for demo user
+      createSession(demoUser)
+      
+      setShowSuccessPopup(true)
+      setShowDemoDialog(false)
+      
+      // Redirect after showing success animation
+      setTimeout(() => {
+        router.push('/tests?demo=true')
+      }, 2000)
+    } catch (error) {
+      console.error('Demo login error:', error)
+    } finally {
+      setIsDemoLoading(false)
+    }
   }
 
   return (
@@ -128,12 +176,24 @@ export default function LoginPage() {
               )}
             </Button>
 
-            <div className="text-center text-sm text-gray-600 space-y-1 pt-4 border-t border-gray-200">
+            <div className="text-center text-sm text-gray-600 space-y-3 pt-4 border-t border-gray-200">
               <p className="flex items-center justify-center gap-2">
                 <Crown className="h-4 w-4 text-[#002E2C]" />
                 Premium Access Required
               </p>
               <p className="text-xs text-gray-500">Contact administrator for enrollment</p>
+              
+              <div className="pt-2">
+                <Button
+                  onClick={handleDemoAccess}
+                  variant="outline"
+                  className="w-full border-2 border-blue-500 text-blue-600 hover:bg-blue-50 hover:text-blue-700 transition-all duration-200"
+                >
+                  <TestTube className="mr-2 h-4 w-4" />
+                  Test Software (Demo)
+                </Button>
+                <p className="text-xs text-gray-400 mt-2">Try our software with a sample test</p>
+              </div>
             </div>
           </form>
         </CardContent>
@@ -213,6 +273,79 @@ export default function LoginPage() {
           </div>
         </div>
       )}
+
+      {/* Demo Access Dialog */}
+      <AlertDialog open={showDemoDialog} onOpenChange={setShowDemoDialog}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader className="text-center">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-r from-blue-400 to-blue-600">
+              <TestTube className="h-6 w-6 text-white" />
+            </div>
+            <AlertDialogTitle className="text-xl font-bold text-gray-900">
+              Try Our Software - Demo Access
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-600 mt-2">
+              Experience our exam software with a sample test. Just enter your name to get started!
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <form onSubmit={handleDemoLogin} className="space-y-4">
+            <div className="space-y-2">
+              <label htmlFor="demoName" className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                <User className="h-4 w-4" />
+                Your Name
+              </label>
+              <div className="relative">
+                <Input
+                  id="demoName"
+                  type="text"
+                  value={demoName}
+                  onChange={(e) => setDemoName(e.target.value)}
+                  placeholder="Enter your name"
+                  required
+                  className="w-full bg-white border-2 border-gray-200 text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-blue-500/20 pl-10 transition-all duration-200"
+                />
+                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
+              </div>
+            </div>
+            <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+              <h4 className="font-semibold text-blue-800 mb-2">Demo Features:</h4>
+              <ul className="text-sm text-blue-700 space-y-1">
+                <li>• Access to Sample Test category only</li>
+                <li>• Experience the full exam interface</li>
+                <li>• See how results are displayed</li>
+                <li>• No registration required</li>
+              </ul>
+            </div>
+            <AlertDialogFooter className="flex flex-col gap-2 sm:flex-row">
+              <Button 
+                type="button"
+                variant="outline" 
+                onClick={() => setShowDemoDialog(false)}
+                className="w-full"
+              >
+                Cancel
+              </Button>
+              <Button 
+                type="submit"
+                disabled={isDemoLoading || !demoName.trim()}
+                className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white"
+              >
+                {isDemoLoading ? (
+                  <>
+                    <LoadingSpinner className="mr-2" />
+                    Starting Demo...
+                  </>
+                ) : (
+                  <>
+                    <TestTube className="h-4 w-4 mr-2" />
+                    Start Demo
+                  </>
+                )}
+              </Button>
+            </AlertDialogFooter>
+          </form>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
     </>
   )

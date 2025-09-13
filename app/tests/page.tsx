@@ -48,6 +48,7 @@ export default function TestsPage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [attempts, setAttempts] = useState<Attempt[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [isCategoriesLoading, setIsCategoriesLoading] = useState(true)
   const [user, setUser] = useState<any>(null)
   const [isClient, setIsClient] = useState(false)
   const [showTestConfirmation, setShowTestConfirmation] = useState(false)
@@ -73,22 +74,32 @@ export default function TestsPage() {
     fetchAttempts()
   }, [user, isClient])
 
-  // Filter categories based on filter
+  // Filter categories based on selected filter
   useEffect(() => {
-    if (!categories.length) return
+    if (categories.length === 0) return
 
     let filtered = categories
 
+    // Hide Sample Test category for real users (non-demo)
+    const isDemo = searchParams.get('demo') === 'true'
+    if (!isDemo) {
+      filtered = filtered.filter(category => 
+        !category.name.toLowerCase().includes('sample')
+      )
+    }
+
     if (selectedFilter !== 'all') {
-      filtered = categories.filter(category => category.id === selectedFilter)
+      filtered = filtered.filter(category => category.id === selectedFilter)
     }
 
     setFilteredCategories(filtered)
-  }, [categories, selectedFilter])
+  }, [categories, selectedFilter, searchParams])
 
-  // Handle URL parameters for direct category access
+  // Handle URL parameters for direct category access and demo mode
   useEffect(() => {
     const category = searchParams.get('category')
+    const isDemo = searchParams.get('demo')
+    
     if (category && categories.length > 0) {
       const foundCategory = categories.find(cat => 
         cat.name.toLowerCase() === category.toLowerCase()
@@ -97,10 +108,21 @@ export default function TestsPage() {
         setSelectedCategory(foundCategory.id)
       }
     }
+    
+    // If demo mode, filter to only show Sample Test category
+    if (isDemo === 'true' && categories.length > 0) {
+      const sampleCategory = categories.find(cat => 
+        cat.name.toLowerCase().includes('sample')
+      )
+      if (sampleCategory) {
+        setFilteredCategories([sampleCategory])
+      }
+    }
   }, [searchParams, categories])
 
   const fetchTests = async () => {
     try {
+      setIsCategoriesLoading(true)
       // Get all tests except drafts
       const { data: testsData, error: testsError } = await supabase
         .from('tests')
@@ -161,6 +183,8 @@ export default function TestsPage() {
       setTests([])
       setCategories([])
       setFilteredCategories([])
+    } finally {
+      setIsCategoriesLoading(false)
     }
   }
 
@@ -287,11 +311,15 @@ export default function TestsPage() {
             {/* Left Side - Title and Welcome */}
             <div className="flex items-center gap-4">
               <div>
-                <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Tests</h1>
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
+                  {searchParams.get('demo') === 'true' ? 'Demo - Sample Tests' : 'Tests'}
+                </h1>
                 <p className="text-sm text-gray-600 hidden sm:block">
-                  {selectedCategory 
-                    ? `Showing tests for ${categories.find(c => c.id === selectedCategory)?.name}` 
-                    : `Welcome, ${user.full_name}`
+                  {searchParams.get('demo') === 'true' 
+                    ? 'Try our software with sample tests' 
+                    : selectedCategory 
+                      ? `Showing tests for ${categories.find(c => c.id === selectedCategory)?.name}` 
+                      : `Welcome, ${user.full_name}`
                   }
                 </p>
               </div>
@@ -318,7 +346,7 @@ export default function TestsPage() {
                   size="sm"
                   className="flex items-center gap-2 border-[#002E2C] text-[#002E2C] hover:bg-[#002E2C] hover:text-white transition-all duration-200 text-sm px-3 py-2 whitespace-nowrap"
                 >
-                  <span className="hidden sm:inline">← Back</span>
+                  <span className="hidden sm:inline">← Home</span>
                   <span className="sm:hidden">←</span>
                 </Button>
               )}
@@ -422,41 +450,51 @@ export default function TestsPage() {
         {!selectedCategory ? (
           // Categories View
           <>
-            {/* Filter Bar */}
-            <div className="mb-8 flex justify-end">
-              <div className="flex gap-2">
-                <Select value={selectedFilter} onValueChange={setSelectedFilter}>
-                  <SelectTrigger className="w-48 border-2 border-gray-200 focus:border-[#002E2C]">
-                    <SelectValue placeholder="All Categories" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Categories</SelectItem>
-                    {categories.map((category) => (
-                      <SelectItem key={category.id} value={category.id}>
-                        {category.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button
-                  onClick={() => {
-                    setSelectedFilter('all')
-                  }}
-                  variant="outline"
-                  className="whitespace-nowrap border-[#002E2C] text-[#002E2C] hover:bg-[#002E2C] hover:text-white transition-all duration-200"
-                >
-                  Clear Filters
-                </Button>
+            {/* Filter Bar - Hide in demo mode */}
+            {searchParams.get('demo') !== 'true' && (
+              <div className="mb-8 flex justify-end">
+                <div className="flex gap-2">
+                  <Select value={selectedFilter} onValueChange={setSelectedFilter}>
+                    <SelectTrigger className="w-48 border-2 border-gray-200 focus:border-[#002E2C]">
+                      <SelectValue placeholder="All Categories" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Categories</SelectItem>
+                      {categories.map((category) => (
+                        <SelectItem key={category.id} value={category.id}>
+                          {category.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    onClick={() => {
+                      setSelectedFilter('all')
+                    }}
+                    variant="outline"
+                    className="whitespace-nowrap border-[#002E2C] text-[#002E2C] hover:bg-[#002E2C] hover:text-white transition-all duration-200"
+                  >
+                    Clear Filters
+                  </Button>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Categories Count */}
-            <div className="mb-6">
-              <p className="text-sm text-gray-600">Showing {getFilteredCategories().length} categories</p>
-            </div>
+            {!isCategoriesLoading && (
+              <div className="mb-6">
+                <p className="text-sm text-gray-600">Showing {getFilteredCategories().length} categories</p>
+              </div>
+            )}
 
             {/* Categories Grid */}
-            {getFilteredCategories().length === 0 ? (
+            {isCategoriesLoading ? (
+              <div className="text-center py-16 bg-white/95 backdrop-blur-lg rounded-xl shadow-lg border border-[#002E2C]/10">
+                <LoadingSpinner className="h-16 w-16 mx-auto mb-6" />
+                <h3 className="text-xl font-semibold text-[#002E2C] mb-3">Loading Categories</h3>
+                <p className="text-gray-600">Please wait while we fetch the test categories...</p>
+              </div>
+            ) : getFilteredCategories().length === 0 ? (
               <div className="text-center py-16 bg-white/95 backdrop-blur-lg rounded-xl shadow-lg border border-[#002E2C]/10">
                 <FileText className="h-16 w-16 text-gray-400 mx-auto mb-6" />
                 <h3 className="text-xl font-semibold text-[#002E2C] mb-3">No categories found</h3>
@@ -484,7 +522,7 @@ export default function TestsPage() {
                       <CardTitle className="text-xl mb-6 text-[#002E2C] font-bold">{category.name}</CardTitle>
                       <Button
                         onClick={() => handleCategoryClick(category.id)}
-                        className="w-full bg-gradient-to-r from-[#002E2C] to-[#004A47] hover:from-[#004A47] hover:to-[#002E2C] text-white font-semibold py-3 px-6 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg"
+                        className="w-full bg-gradient-to-r from-[#002E2C] to-emerald-600 hover:from-[#003d3a] hover:to-emerald-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg text-lg"
                       >
                         Explore Tests
                       </Button>

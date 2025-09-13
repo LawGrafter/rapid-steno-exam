@@ -68,6 +68,13 @@ export default function MyAccountPage() {
       router.push('/login')
       return
     }
+    
+    // Block demo users from accessing account page
+    if ((user as any).user_type === 'demo') {
+      router.push('/tests?demo=true')
+      return
+    }
+    
     fetchUserData()
   }, [user, router])
 

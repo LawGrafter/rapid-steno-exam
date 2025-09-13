@@ -60,6 +60,21 @@ export default function SubmittedPage() {
     if (!user) return
     
     try {
+      // Check if this is a demo user
+      if ((user as any).user_type === 'demo') {
+        // Load demo result from localStorage
+        const demoResultStr = localStorage.getItem('demo_test_result')
+        if (demoResultStr) {
+          const demoResult = JSON.parse(demoResultStr)
+          setTestResult(demoResult)
+        } else {
+          // No demo result found, redirect to tests
+          router.push('/tests?demo=true')
+        }
+        setLoading(false)
+        return
+      }
+
       // First, let's check if there are any attempts at all
       const { data: allAttempts, error: allError } = await supabase
         .from('attempts')
@@ -94,6 +109,7 @@ export default function SubmittedPage() {
         .eq('status', 'submitted')
         .order('submitted_at', { ascending: false })
         .limit(1)
+        .single()
 
       if (error) throw error
       

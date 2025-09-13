@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { supabase } from '@/lib/supabase'
 import { getCurrentUser } from '@/lib/auth'
-import { Clock, ChevronLeft, ChevronRight, Flag } from 'lucide-react'
+import { Clock, ChevronLeft, ChevronRight, Flag, ArrowLeft, Send, CheckCircle, Sparkles } from 'lucide-react'
 
 type Question = {
   id: string
@@ -42,6 +42,11 @@ export default function TestPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [user, setUser] = useState<any>(null)
   const [isClient, setIsClient] = useState(false)
+  const [showBackConfirmation, setShowBackConfirmation] = useState(false)
+  const [showSubmitConfirmation, setShowSubmitConfirmation] = useState(false)
+  const [showSuccessModal, setShowSuccessModal] = useState(false)
+  const [countdown, setCountdown] = useState(5)
+  const [showConfetti, setShowConfetti] = useState(false)
 
   // Fix hydration mismatch - only get user on client side
   useEffect(() => {
@@ -63,6 +68,11 @@ export default function TestPage() {
   // Check if user has already completed this test
   const checkExistingAttempt = async () => {
     try {
+      // Check if this is a demo user
+      if ((user as any).user_type === 'demo') {
+        return false
+      }
+      
       const { data: existingAttempt } = await supabase
         .from('attempts')
         .select('id, status, submitted_at')
@@ -115,30 +125,36 @@ export default function TestPage() {
 
       // Step 3: Create or get existing attempt
       let attemptId: string
-      const { data: existingAttempt } = await supabase
-        .from('attempts')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('test_id', testId)
-        .eq('status', 'active')
-        .single()
-
-      if (existingAttempt) {
-        attemptId = existingAttempt.id
+      
+      if ((user as any).user_type === 'demo') {
+        // For demo users, create a local attempt ID without database interaction
+        attemptId = `demo_attempt_${Date.now()}`
       } else {
-        const { data: newAttempt, error: attemptError } = await supabase
+        const { data: existingAttempt } = await supabase
           .from('attempts')
-          .insert({
-            user_id: user.id,
-            test_id: testId,
-            status: 'active',
-            time_remaining: testData.duration_minutes * 60
-          })
           .select('id')
+          .eq('user_id', user.id)
+          .eq('test_id', testId)
+          .eq('status', 'active')
           .single()
 
-        if (attemptError) throw attemptError
-        attemptId = newAttempt.id
+        if (existingAttempt) {
+          attemptId = existingAttempt.id
+        } else {
+          const { data: newAttempt, error: attemptError } = await supabase
+            .from('attempts')
+            .insert({
+              user_id: user.id,
+              test_id: testId,
+              status: 'active',
+              time_remaining: testData.duration_minutes * 60
+            })
+            .select('id')
+            .single()
+
+          if (attemptError) throw attemptError
+          attemptId = newAttempt.id
+        }
       }
 
       // Step 4: Initialize answers locally
@@ -195,6 +211,55 @@ export default function TestPage() {
     })
   }
 
+  // Handle back button with confirmation
+  const handleBackClick = () => {
+    setShowBackConfirmation(true)
+  }
+
+  const handleConfirmBack = () => {
+    router.push('/tests')
+  }
+
+  const handleCancelBack = () => {
+    setShowBackConfirmation(false)
+  }
+
+  // Handle submit button with confirmation
+  const handleSubmitClick = () => {
+    setShowSubmitConfirmation(true)
+  }
+
+  const handleConfirmSubmit = () => {
+    setShowSubmitConfirmation(false)
+    handleSubmit()
+  }
+
+  // Countdown timer effect for success modal
+  useEffect(() => {
+    if (showSuccessModal && countdown > 0) {
+      const timer = setTimeout(() => {
+        setCountdown(prev => prev - 1)
+      }, 1000)
+      return () => clearTimeout(timer)
+    } else if (showSuccessModal && countdown === 0) {
+      // Show confetti immediately with sound effect and then redirect
+      setShowConfetti(true)
+      
+      // Play success sound effect
+      const audio = new Audio('/sounds/success-celebration.mp3')
+      audio.volume = 0.5
+      audio.play().catch(e => console.log('Audio play failed:', e))
+      
+      setTimeout(() => {
+        router.push('/submitted')
+      }, 3000) // Show confetti for 3 seconds
+    }
+  }, [showSuccessModal, countdown, router])
+
+  const handleCancelSubmit = () => {
+    setShowSubmitConfirmation(false)
+  }
+
   // Submit test with proper database saving
   const handleSubmit = async (isAutoSubmit = false) => {
     // Prevent multiple submissions
@@ -234,8 +299,8 @@ export default function TestPage() {
         }
       }
 
-      // Save all answers to database
-      if (answersToSave.length > 0) {
+      // Save all answers to database (skip for demo users)
+      if ((user as any).user_type !== 'demo' && answersToSave.length > 0) {
         const { error: answersError } = await supabase
           .from('answers')
           .upsert(answersToSave)
@@ -243,21 +308,44 @@ export default function TestPage() {
         if (answersError) throw answersError
       }
 
-      // Update attempt as submitted
-      const { error: attemptError } = await supabase
-        .from('attempts')
-        .update({
-          status: 'submitted',
-          submitted_at: new Date().toISOString(),
+      // Update attempt as submitted (skip for demo users)
+      if ((user as any).user_type !== 'demo') {
+        const { error: attemptError } = await supabase
+          .from('attempts')
+          .update({
+            status: 'submitted',
+            submitted_at: new Date().toISOString(),
+            total_score: totalScore,
+            time_remaining: timeRemaining
+          })
+          .eq('id', currentAttempt)
+
+        if (attemptError) throw attemptError
+      } else {
+        // For demo users, store results in localStorage for the results page
+        const demoResult = {
+          test: test,
+          answers: answers.map(answer => {
+            const question = questions.find(q => q.id === answer.question_id)
+            const selectedOption = question?.options.find(opt => opt.id === answer.chosen_option_id)
+            return {
+              question_id: answer.question_id,
+              chosen_option_id: answer.chosen_option_id,
+              is_correct: selectedOption?.is_correct || false,
+              score: selectedOption?.is_correct ? (question?.points || 1) : 0,
+              question: question
+            }
+          }),
           total_score: totalScore,
+          submitted_at: new Date().toISOString(),
           time_remaining: timeRemaining
-        })
-        .eq('id', currentAttempt)
+        }
+        localStorage.setItem('demo_test_result', JSON.stringify(demoResult))
+      }
 
-      if (attemptError) throw attemptError
-
-      // Redirect to submitted page
-      router.push('/submitted')
+      // Show success modal instead of direct redirect
+      setShowSuccessModal(true)
+      setCountdown(5)
     } catch (error) {
       console.error('Error submitting test:', error)
       setError('Failed to submit test. Please try again.')
@@ -330,6 +418,25 @@ export default function TestPage() {
               <div className="flex items-center gap-2 bg-blue-50 border-2 border-blue-200 rounded-lg px-3 py-2 w-full sm:w-auto justify-center sm:justify-start">
                 <span className="text-xl font-bold text-blue-700">{answeredCount}/{questions.length}</span>
                 <span className="text-sm font-medium text-blue-600">answered</span>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  onClick={handleBackClick}
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-2 border-gray-300 text-gray-700 hover:bg-gray-50"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  Back
+                </Button>
+                <Button
+                  onClick={handleSubmitClick}
+                  size="sm"
+                  className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white"
+                >
+                  <Send className="h-4 w-4" />
+                  Submit Test
+                </Button>
               </div>
             </div>
           </div>
@@ -451,6 +558,176 @@ export default function TestPage() {
           </div>
         </div>
       </div>
+
+      {/* Back Confirmation Modal */}
+      {showBackConfirmation && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 overflow-hidden">
+            <div className="bg-gradient-to-r from-orange-500 to-red-500 p-4 text-white">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
+                  <ArrowLeft className="h-5 w-5" />
+                </div>
+                <h3 className="font-bold text-lg">⚠️ Leave Test?</h3>
+              </div>
+            </div>
+            <div className="p-6">
+              <div className="space-y-4 mb-6">
+                <p className="text-gray-800">Are you sure you want to go back? Your test progress will be lost and you will have to start the test again.</p>
+                <div className="flex items-start gap-3 p-3 bg-red-50 rounded-lg border border-red-200">
+                  <div className="w-2 h-2 bg-red-500 rounded-full mt-2 flex-shrink-0"></div>
+                  <p className="text-gray-800 text-sm">All your answers and progress will be permanently lost.</p>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <Button
+                  onClick={handleCancelBack}
+                  variant="outline"
+                  className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-50"
+                >
+                  Stay in Test
+                </Button>
+                <Button
+                  onClick={handleConfirmBack}
+                  className="flex-1 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white"
+                >
+                  Yes, Go Back
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Submit Confirmation Modal */}
+      {showSubmitConfirmation && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 overflow-hidden">
+            <div className="bg-gradient-to-r from-green-500 to-emerald-500 p-4 text-white">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
+                  <Send className="h-5 w-5" />
+                </div>
+                <h3 className="font-bold text-lg">🚀 Submit Test?</h3>
+              </div>
+            </div>
+            <div className="p-6">
+              <div className="space-y-4 mb-6">
+                <p className="text-gray-800">Are you ready to submit your test? This action cannot be undone.</p>
+                <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-blue-800">Progress Summary:</span>
+                  </div>
+                  <div className="space-y-1 text-sm text-blue-700">
+                    <div className="flex justify-between">
+                      <span>Answered Questions:</span>
+                      <span className="font-semibold">{answeredCount}/{questions.length}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Time Remaining:</span>
+                      <span className="font-semibold">{formatTime(timeRemaining)}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 p-3 bg-red-50 rounded-lg border border-red-200">
+                  <div className="w-2 h-2 bg-red-500 rounded-full mt-2 flex-shrink-0"></div>
+                  <p className="text-gray-800 text-sm">Once submitted, you cannot make any changes to your answers.</p>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <Button
+                  onClick={handleCancelSubmit}
+                  variant="outline"
+                  className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-50"
+                >
+                  Continue Test
+                </Button>
+                <Button
+                  onClick={handleConfirmSubmit}
+                  className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? 'Submitting...' : 'Submit Test'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Success Modal with Countdown */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 overflow-hidden">
+            <div className="bg-gradient-to-r from-green-500 to-emerald-500 p-6 text-white text-center">
+              <div className="flex items-center justify-center mb-4">
+                <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center animate-pulse">
+                  <CheckCircle className="h-8 w-8" />
+                </div>
+              </div>
+              <h3 className="font-bold text-2xl mb-2">🎉 Test Submitted Successfully!</h3>
+              <p className="text-green-100">Your answers have been saved and processed.</p>
+            </div>
+            <div className="p-6 text-center">
+              <div className="mb-6">
+                <div className="text-6xl font-bold text-green-600 mb-2 animate-bounce">
+                  {countdown}
+                </div>
+                <p className="text-gray-700 text-lg">
+                  Your test results will be ready in <span className="font-semibold text-green-600">{countdown}</span> seconds...
+                </p>
+              </div>
+              <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
+                <Sparkles className="h-4 w-4 animate-spin" />
+                <span>Processing your results</span>
+                <Sparkles className="h-4 w-4 animate-spin" />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confetti Animation */}
+      {showConfetti && (
+        <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
+          <div className="confetti-container">
+            {[...Array(100)].map((_, i) => (
+              <div
+                key={i}
+                className="confetti"
+                style={{
+                  left: `${Math.random() * 100}%`,
+                  animationDelay: `${Math.random() * 0.5}s`,
+                  backgroundColor: ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#feca57', '#ff9ff3'][Math.floor(Math.random() * 6)]
+                }}
+              />
+            ))}
+          </div>
+          <style jsx>{`
+            .confetti-container {
+              position: relative;
+              width: 100%;
+              height: 100%;
+            }
+            .confetti {
+              position: absolute;
+              width: 10px;
+              height: 10px;
+              animation: confetti-fall 3s linear infinite;
+            }
+            @keyframes confetti-fall {
+              0% {
+                transform: translateY(-10vh) rotate(0deg);
+                opacity: 1;
+              }
+              100% {
+                transform: translateY(110vh) rotate(720deg);
+                opacity: 0;
+              }
+            }
+          `}</style>
+        </div>
+      )}
     </div>
   )
 }
