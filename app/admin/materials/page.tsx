@@ -168,19 +168,58 @@ export default function AdminMaterialsPage() {
     if (!newCategoryName.trim()) return
     
     try {
-      // Add new category - replace with actual Supabase insert
-      const newCategory: MaterialCategory = {
-        id: Date.now().toString(),
-        name: newCategoryName,
-        description: newCategoryDescription
+      // Insert new category into Supabase database
+      const { data, error } = await supabase
+        .from('material_categories')
+        .insert({
+          name: newCategoryName,
+          description: newCategoryDescription
+        })
+        .select()
+        .single()
+
+      if (error) {
+        console.error('Database error:', error)
+        throw error
       }
-      
-      setCategories(prev => [...prev, newCategory])
+
+      // Reload data from database to get updated list
+      await loadData()
       setNewCategoryName('')
       setNewCategoryDescription('')
       setShowCategoryForm(false)
     } catch (error) {
       console.error('Error creating category:', error)
+    }
+  }
+
+  const handleDeleteCategory = async (categoryId: string) => {
+    if (!confirm('Are you sure you want to delete this category? This action cannot be undone.')) return
+    
+    try {
+      // Check if category has materials
+      const materialsInCategory = materials.filter(m => m.category_id === categoryId)
+      if (materialsInCategory.length > 0) {
+        if (!confirm(`This category has ${materialsInCategory.length} materials. Deleting it will remove the category association from these materials. Continue?`)) {
+          return
+        }
+      }
+
+      // Delete category from Supabase database
+      const { error } = await supabase
+        .from('material_categories')
+        .delete()
+        .eq('id', categoryId)
+
+      if (error) {
+        console.error('Database error:', error)
+        throw error
+      }
+
+      // Reload data from database to get updated list
+      await loadData()
+    } catch (error) {
+      console.error('Error deleting category:', error)
     }
   }
 
@@ -367,6 +406,13 @@ export default function AdminMaterialsPage() {
             </div>
             <div className="flex items-center gap-4">
               <Button
+                onClick={() => router.push('/admin/categories')}
+                variant="outline"
+                size="sm"
+              >
+                Categories
+              </Button>
+              <Button
                 onClick={() => router.push('/admin/dashboard')}
                 variant="outline"
                 size="sm"
@@ -387,64 +433,6 @@ export default function AdminMaterialsPage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Category Management */}
-        <Card className="mb-8">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Material Categories</CardTitle>
-              <Button
-                onClick={() => setShowCategoryForm(!showCategoryForm)}
-                variant="outline"
-                size="sm"
-              >
-                {showCategoryForm ? 'Cancel' : <Plus className="h-4 w-4 mr-2" />}
-                {showCategoryForm ? 'Cancel' : 'Add Category'}
-              </Button>
-            </div>
-          </CardHeader>
-          {showCategoryForm && (
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="categoryName">Category Name</Label>
-                  <Input
-                    id="categoryName"
-                    value={newCategoryName}
-                    onChange={(e) => setNewCategoryName(e.target.value)}
-                    placeholder="Enter category name"
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="categoryDescription">Description</Label>
-                  <Input
-                    id="categoryDescription"
-                    value={newCategoryDescription}
-                    onChange={(e) => setNewCategoryDescription(e.target.value)}
-                    placeholder="Enter category description"
-                  />
-                </div>
-              </div>
-              <div className="mt-4">
-                <Button onClick={handleCreateCategory} className="mr-2">
-                  Create Category
-                </Button>
-                <Button variant="outline" onClick={() => setShowCategoryForm(false)}>
-                  Cancel
-                </Button>
-              </div>
-            </CardContent>
-          )}
-          <CardContent>
-            <div className="flex flex-wrap gap-2">
-              {categories.map(category => (
-                <Badge key={category.id} variant="secondary" className="text-sm py-1 px-3">
-                  {category.name} ({materials.filter(m => m.category_id === category.id).length})
-                </Badge>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
 
         {/* Material Form */}
         <Card className="mb-8">
@@ -549,19 +537,20 @@ export default function AdminMaterialsPage() {
                 {/* Test Category and Associated Test */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="testCategory">Test Category *</Label>
+                    <Label htmlFor="testCategory">Test Category (Optional)</Label>
                     <Select
-                      value={formData.test_category || ""}
+                      value={formData.test_category || undefined}
                       onValueChange={(value) => setFormData(prev => ({ 
                         ...prev, 
-                        test_category: value,
+                        test_category: value === "none" ? "" : value,
                         associated_test_id: "" // Reset test selection when category changes
                       }))}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Select test category" />
+                        <SelectValue placeholder="Select test category (optional)" />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="none">None</SelectItem>
                         {Array.from(new Set(tests.map(test => test.category).filter(Boolean))).map(category => (
                           <SelectItem key={category} value={category}>
                             {category}
@@ -574,16 +563,17 @@ export default function AdminMaterialsPage() {
                     </p>
                   </div>
                   <div>
-                    <Label htmlFor="associatedTest">Associated Test *</Label>
+                    <Label htmlFor="associatedTest">Associated Test (Optional)</Label>
                     <Select
-                      value={formData.associated_test_id || ""}
-                      onValueChange={(value) => setFormData(prev => ({ ...prev, associated_test_id: value }))}
+                      value={formData.associated_test_id || undefined}
+                      onValueChange={(value) => setFormData(prev => ({ ...prev, associated_test_id: value === "none" ? "" : value }))}
                       disabled={!formData.test_category}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder={formData.test_category ? "Select test" : "Select category first"} />
+                        <SelectValue placeholder={formData.test_category ? "Select test (optional)" : "Select category first"} />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="none">None</SelectItem>
                         {tests
                           .filter(test => formData.test_category && test.category === formData.test_category)
                           .map(test => (

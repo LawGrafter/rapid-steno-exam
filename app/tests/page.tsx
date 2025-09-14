@@ -10,7 +10,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { supabase } from '@/lib/supabase'
 import { getCurrentUser, logout } from '@/lib/auth'
+import { AccessControl, UserAccess } from '@/lib/access-control'
 import { Search, ArrowLeft, Lock, User, LogOut, Menu, X, Clock, Calendar, FileText, Building, Cpu, Shirt, AlertTriangle } from 'lucide-react'
+import { UpgradeDialog } from '@/components/ui/upgrade-dialog'
 import Head from 'next/head'
 
 type Test = {
@@ -53,6 +55,12 @@ export default function TestsPage() {
   const [isClient, setIsClient] = useState(false)
   const [showTestConfirmation, setShowTestConfirmation] = useState(false)
   const [selectedTestId, setSelectedTestId] = useState<string | null>(null)
+  const [userAccess, setUserAccess] = useState<UserAccess | null>(null)
+  const [showUpgradeDialog, setShowUpgradeDialog] = useState(false)
+  const [upgradeMessage, setUpgradeMessage] = useState('')
+  
+  // Initialize AccessControl
+  const accessControl = new AccessControl(supabase)
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -264,8 +272,38 @@ export default function TestsPage() {
     }
   }
 
-  const handleCategoryClick = (categoryId: string) => {
-    setSelectedCategory(categoryId)
+  const handleCategoryClick = async (categoryId: string) => {
+    if (!user) {
+      router.push('/login')
+      return
+    }
+
+    // Find the category name from the categoryId
+    const category = categories.find(cat => cat.id === categoryId)
+    const categoryName = category?.name || categoryId
+
+    try {
+      // Check user access for this category
+      const userAccess = await accessControl.getUserAccess(user.id)
+      
+      console.log('Category access check:', {
+        categoryName,
+        userAccess,
+        canAccess: accessControl.canAccessCategory(userAccess, categoryName)
+      })
+      
+      if (!accessControl.canAccessCategory(userAccess, categoryName)) {
+        setUpgradeMessage(accessControl.getUpgradeMessage(categoryName))
+        setShowUpgradeDialog(true)
+        return
+      }
+
+      setSelectedCategory(categoryId)
+    } catch (error) {
+      console.error('Error checking category access:', error)
+      // Don't show upgrade dialog for errors - just allow access
+      setSelectedCategory(categoryId)
+    }
   }
 
   const handleBackToCategories = () => {
@@ -671,6 +709,13 @@ export default function TestsPage() {
           </div>
         </div>
       )}
+
+      <UpgradeDialog
+        isOpen={showUpgradeDialog}
+        onClose={() => setShowUpgradeDialog(false)}
+        categoryName="Allahabad High Court"
+        userHasGoldPlan={true}
+      />
     </div>
     </>
   )

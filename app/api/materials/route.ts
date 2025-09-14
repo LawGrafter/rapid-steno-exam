@@ -11,8 +11,14 @@ export async function GET() {
     const { data: materials, error } = await supabase
       .from('materials')
       .select(`
-        *,
-        category:material_categories(*)
+        id,
+        title,
+        description,
+        tags,
+        pdf_url,
+        status,
+        created_at,
+        category:material_categories(id, name, description)
       `)
       .eq('status', 'published')
       .order('created_at', { ascending: false })
@@ -22,6 +28,7 @@ export async function GET() {
       return NextResponse.json({ error: 'Failed to fetch materials' }, { status: 500 })
     }
 
+    console.log('Materials with tags:', materials?.map(m => ({ title: m.title, tags: m.tags })))
     return NextResponse.json(materials || [])
   } catch (error) {
     console.error('Error in materials API:', error)
