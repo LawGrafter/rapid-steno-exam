@@ -15,8 +15,7 @@ interface UpgradeDialogProps {
 
 export function UpgradeDialog({ isOpen, onClose, categoryName, userHasGoldPlan = false }: UpgradeDialogProps) {
   const isAHCContent = categoryName.toLowerCase().includes('allahabad') || 
-                      categoryName.toLowerCase().includes('ahc') || 
-                      categoryName.toLowerCase().includes('high court')
+                      categoryName.toLowerCase().includes('ahc')
 
   // Request Upgrade form state
   const [showUpgradeForm, setShowUpgradeForm] = useState(false)

@@ -51,7 +51,15 @@ export class AccessControl {
       const hasAHCPlan = userPlans.includes('ahc')
       const hasGoldPlan = userPlans.includes('gold')
 
-      console.log('Access check result:', { userId, userPlans, hasAHCPlan, hasGoldPlan })
+      console.log('Access check result:', { 
+        userId, 
+        userPlans, 
+        hasAHCPlan, 
+        hasGoldPlan,
+        subscriptions: subscriptions?.length || 0,
+        plans: plans?.length || 0,
+        subscriptionDetails: subscriptions
+      })
 
       return {
         hasAHCPlan,

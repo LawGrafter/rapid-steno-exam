@@ -187,16 +187,38 @@ export default function UserManagementPage() {
 
   const deleteUser = async (subscriptionId: string, userEmail: string) => {
     try {
-      const { error } = await supabase
+      // First get the user_id from the subscription
+      const { data: subscription } = await supabase
+        .from('user_subscriptions')
+        .select('user_id')
+        .eq('id', subscriptionId)
+        .single()
+
+      if (!subscription) {
+        throw new Error('Subscription not found')
+      }
+
+      // Delete subscription first
+      const { error: subError } = await supabase
         .from('user_subscriptions')
         .delete()
         .eq('id', subscriptionId)
 
-      if (error) throw error
+      if (subError) throw subError
+
+      // Delete user from users table
+      const { error: userError } = await supabase
+        .from('users')
+        .delete()
+        .eq('id', subscription.user_id)
+
+      if (userError) {
+        console.warn('Failed to delete user record:', userError)
+      }
 
       toast({
         title: "Success",
-        description: `User ${userEmail} deleted successfully`
+        description: `User ${userEmail} and subscription deleted successfully`
       })
 
       fetchSubscriptions()
@@ -204,7 +226,7 @@ export default function UserManagementPage() {
       console.error('Error deleting user:', error)
       toast({
         title: "Error",
-        description: "Failed to delete user",
+        description: `Failed to delete user: ${error.message}`,
         variant: "destructive"
       })
     }
@@ -214,7 +236,8 @@ export default function UserManagementPage() {
     try {
       const newStatus = !currentStatus
       const updateData: any = {
-        is_active: newStatus
+        is_active: newStatus,
+        status: newStatus ? 'active' : 'inactive'
       }
 
       if (!newStatus) {
@@ -242,7 +265,7 @@ export default function UserManagementPage() {
       console.error('Error updating user status:', error)
       toast({
         title: "Error",
-        description: "Failed to update user status",
+        description: `Failed to update user status: ${error.message}`,
         variant: "destructive"
       })
     }
@@ -251,24 +274,39 @@ export default function UserManagementPage() {
   // Add function to create subscription for existing users
   const createUserSubscription = async (userEmail: string, planName: string) => {
     try {
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (!emailRegex.test(userEmail)) {
+        throw new Error('Invalid email format')
+      }
+
       // Find user in public.users by email
       let { data: userData, error: userError } = await supabase
         .from('users')
-        .select('id, email')
-        .eq('email', userEmail)
+        .select('id, email, role')
+        .eq('email', userEmail.toLowerCase().trim())
         .single()
 
       // If not found and allowed, create the user
       if ((userError || !userData) && createUserIfMissing) {
         const { data: insertedUsers, error: insertErr } = await supabase
           .from('users')
-          .insert({ email: userEmail, full_name: newUserFullName || userEmail.split('@')[0], role: 'student' })
-          .select('id, email')
+          .insert({ 
+            email: userEmail.toLowerCase().trim(), 
+            full_name: newUserFullName || userEmail.split('@')[0].replace(/[^a-zA-Z\s]/g, ''), 
+            role: 'student' 
+          })
+          .select('id, email, role')
           .limit(1)
         if (insertErr || !insertedUsers || insertedUsers.length === 0) {
           throw insertErr || new Error('Failed to create user')
         }
         userData = insertedUsers[0]
+        
+        toast({
+          title: "User Created",
+          description: `New user ${userEmail} created successfully`
+        })
       } else if (userError || !userData) {
         toast({
           title: 'User not found',
@@ -276,6 +314,18 @@ export default function UserManagementPage() {
           variant: 'destructive'
         })
         return
+      }
+
+      // Ensure user has correct role
+      if (userData.role !== 'student') {
+        const { error: roleUpdateError } = await supabase
+          .from('users')
+          .update({ role: 'student' })
+          .eq('id', userData.id)
+        
+        if (roleUpdateError) {
+          console.warn('Failed to update user role:', roleUpdateError)
+        }
       }
 
       // Get plan by name
@@ -294,30 +344,140 @@ export default function UserManagementPage() {
         return
       }
 
-      // Create subscription
-      const { error } = await supabase
+      // Check if subscription already exists for this user and plan
+      const { data: existingSub } = await supabase
         .from('user_subscriptions')
-        .insert({
-          user_id: userData.id,
-          plan_id: planData.id,
-          status: 'active',
-          expires_at: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(), // 3 months
-          is_active: true
+        .select('id, is_active, status')
+        .eq('user_id', userData.id)
+        .eq('plan_id', planData.id)
+        .single()
+
+      const expiryDate = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString()
+
+      if (existingSub) {
+        // Update existing subscription
+        const { error } = await supabase
+          .from('user_subscriptions')
+          .update({
+            status: 'active',
+            expires_at: expiryDate,
+            is_active: true,
+            deactivated_at: null,
+            deactivation_reason: null
+          })
+          .eq('id', existingSub.id)
+
+        if (error) throw error
+        
+        toast({
+          title: "Subscription Updated",
+          description: `Existing subscription for ${userEmail} updated and activated`
         })
+      } else {
+        // Create new subscription
+        const { error } = await supabase
+          .from('user_subscriptions')
+          .insert({
+            user_id: userData.id,
+            plan_id: planData.id,
+            status: 'active',
+            expires_at: expiryDate,
+            is_active: true
+          })
 
-      if (error) throw error
+        if (error) throw error
+        
+        toast({
+          title: "Subscription Created",
+          description: `New ${planName.toUpperCase()} subscription created for ${userEmail}`
+        })
+      }
 
-      toast({
-        title: "Success",
-        description: "Subscription created successfully"
-      })
-
+      // Clear form
+      setNewUserEmail('')
+      setNewUserFullName('')
+      
       fetchSubscriptions()
     } catch (error) {
       console.error('Error creating subscription:', error)
       toast({
         title: "Error",
         description: "Failed to create subscription",
+        variant: "destructive"
+      })
+    }
+  }
+
+  // Fix user access issues - ensures user exists in users table with correct role
+  const fixUserAccess = async (userEmail: string) => {
+    try {
+      // Ensure user exists in users table with correct role
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('id, email, role')
+        .eq('email', userEmail.toLowerCase().trim())
+        .single()
+
+      if (userError || !userData) {
+        // User doesn't exist, create them
+        const { data: newUser, error: createError } = await supabase
+          .from('users')
+          .insert({
+            email: userEmail.toLowerCase().trim(),
+            full_name: userEmail.split('@')[0],
+            role: 'student'
+          })
+          .select('id, email, role')
+          .single()
+
+        if (createError) throw createError
+
+        toast({
+          title: "Success",
+          description: `User ${userEmail} created and fixed`
+        })
+      } else {
+        // User exists, ensure role is correct and fix any subscription issues
+        const updates: any = {}
+        if (userData.role !== 'student') {
+          updates.role = 'student'
+        }
+
+        if (Object.keys(updates).length > 0) {
+          const { error: roleError } = await supabase
+            .from('users')
+            .update(updates)
+            .eq('id', userData.id)
+
+          if (roleError) throw roleError
+        }
+
+        // Fix subscription status issues
+        const { error: statusError } = await supabase
+          .from('user_subscriptions')
+          .update({ 
+            status: 'active',
+            is_active: true 
+          })
+          .eq('user_id', userData.id)
+          .eq('is_active', true)
+
+        if (statusError) {
+          console.warn('Failed to fix subscription status:', statusError)
+        }
+
+        toast({
+          title: "Success",
+          description: `User ${userEmail} access fixed successfully`
+        })
+      }
+
+      fetchSubscriptions()
+    } catch (error) {
+      console.error('Error fixing user access:', error)
+      toast({
+        title: "Error",
+        description: `Failed to fix user access: ${error.message}`,
         variant: "destructive"
       })
     }
@@ -560,6 +720,15 @@ export default function UserManagementPage() {
                             Edit
                           </Button>
                           <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => fixUserAccess(subscription.profiles?.email || '')}
+                            className="bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200"
+                          >
+                            <Shield className="w-4 h-4 mr-1" />
+                            Fix Access
+                          </Button>
+                          <Button
                             variant={subscription.is_active ? "destructive" : "default"}
                             size="sm"
                             onClick={() => toggleUserStatus(subscription.id, subscription.is_active)}
@@ -649,12 +818,13 @@ export default function UserManagementPage() {
               <div className="flex flex-col gap-3">
                 <div className="grid grid-cols-1 gap-3">
                   <Input
-                    placeholder="Registered email address"
+                    placeholder="Email address (required)"
                     value={newUserEmail}
                     onChange={(e) => setNewUserEmail(e.target.value)}
+                    type="email"
                   />
                   <Input
-                    placeholder="Full name (for new user)"
+                    placeholder="Full name (optional)"
                     value={newUserFullName}
                     onChange={(e) => setNewUserFullName(e.target.value)}
                   />
@@ -663,8 +833,8 @@ export default function UserManagementPage() {
                       <SelectValue placeholder="Select plan" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="gold">Gold Plan</SelectItem>
-                      <SelectItem value="ahc">AHC Plan</SelectItem>
+                      <SelectItem value="gold">Gold Plan (₹999 - 3 months)</SelectItem>
+                      <SelectItem value="ahc">AHC Plan (₹1499 - 3 months)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -681,16 +851,84 @@ export default function UserManagementPage() {
                     onClick={() => {
                       if (newUserEmail) {
                         createUserSubscription(newUserEmail, newUserPlan)
-                        setNewUserEmail('')
-                        setNewUserFullName('')
                       }
                     }}
                     disabled={!newUserEmail}
                     className="w-full"
                   >
+                    <Plus className="h-4 w-4 mr-2" />
                     Create / Update Subscription
                   </Button>
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Bulk Operations */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Bulk Operations</CardTitle>
+              <CardDescription>Manage multiple users at once</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={() => {
+                    const expiredSubs = subscriptions.filter(sub => {
+                      if (!sub.expires_at) return false
+                      return new Date(sub.expires_at) < new Date()
+                    })
+                    
+                    if (expiredSubs.length === 0) {
+                      toast({
+                        title: "No Action Needed",
+                        description: "No expired subscriptions found"
+                      })
+                      return
+                    }
+
+                    // Deactivate all expired subscriptions
+                    Promise.all(expiredSubs.map(sub => 
+                      toggleUserStatus(sub.id, true)
+                    )).then(() => {
+                      toast({
+                        title: "Success",
+                        description: `Deactivated ${expiredSubs.length} expired subscriptions`
+                      })
+                    })
+                  }}
+                >
+                  <UserX className="h-4 w-4 mr-2" />
+                  Deactivate Expired Users
+                </Button>
+                
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={() => {
+                    const expiringSoon = subscriptions.filter(sub => {
+                      if (!sub.expires_at) return false
+                      const expiryDate = new Date(sub.expires_at)
+                      const weekFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+                      return expiryDate < weekFromNow && expiryDate > new Date()
+                    })
+                    
+                    toast({
+                      title: "Expiring Soon",
+                      description: `${expiringSoon.length} subscriptions expire within 7 days`
+                    })
+                  }}
+                >
+                  <Clock className="h-4 w-4 mr-2" />
+                  Check Expiring Soon ({subscriptions.filter(sub => {
+                    if (!sub.expires_at) return false
+                    const expiryDate = new Date(sub.expires_at)
+                    const weekFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+                    return expiryDate < weekFromNow && expiryDate > new Date()
+                  }).length})
+                </Button>
               </div>
             </CardContent>
           </Card>
