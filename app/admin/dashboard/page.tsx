@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase'
-import { Users, FileText, Key, BarChart3, LogOut, Plus } from 'lucide-react'
+import { Users, FileText, Key, BarChart3, LogOut, Plus, FolderOpen, Settings } from 'lucide-react'
 
 export default function AdminDashboard() {
   const router = useRouter()
@@ -199,6 +199,33 @@ export default function AdminDashboard() {
               <Link href="/admin/analytics">
                 <Button className="w-full h-12 text-base font-medium" variant="outline">
                   Analytics
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+
+          <Card className="hover:shadow-xl transition-all duration-300 border-0 shadow-lg bg-gradient-to-br from-white to-gray-50">
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center gap-3 text-xl">
+                <div className="p-2 bg-indigo-100 rounded-lg">
+                  <FolderOpen className="h-6 w-6 text-indigo-600" />
+                </div>
+                Categories & Topics
+              </CardTitle>
+              <CardDescription className="text-gray-600">
+                Manage test categories and topics structure
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Link href="/admin/categories/manage">
+                <Button className="w-full h-12 text-base font-medium" variant="outline">
+                  Manage Categories & Topics
+                </Button>
+              </Link>
+              <Link href="/admin/categories/cleanup">
+                <Button className="w-full h-12 text-base font-medium bg-indigo-600 hover:bg-indigo-700">
+                  <Settings className="h-5 w-5 mr-2" />
+                  Cleanup Categories
                 </Button>
               </Link>
             </CardContent>

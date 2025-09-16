@@ -133,7 +133,7 @@ export class AccessControl {
   }
 
   private isAHCContent(categoryName: string): boolean {
-    const ahcKeywords = ['allahabad', 'ahc', 'high court', 'allahabad high court']
+    const ahcKeywords = ['allahabad', 'ahc', 'allahabad high court']
     const lowerCaseName = categoryName.toLowerCase()
     
     return ahcKeywords.some(keyword => lowerCaseName.includes(keyword))

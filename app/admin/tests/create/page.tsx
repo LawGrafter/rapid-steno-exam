@@ -33,7 +33,8 @@ export default function CreateTestPage() {
   const [testData, setTestData] = useState({
     title: '',
     description: '',
-    category: 'General',
+    category_id: '',
+    topic_id: '',
     status: 'draft',
     duration_minutes: 60,
     shuffle_questions: true,
@@ -41,10 +42,10 @@ export default function CreateTestPage() {
     negative_marking: false
   })
 
-  // Available categories
-  const [categories, setCategories] = useState<string[]>(['General'])
-  const [newCategory, setNewCategory] = useState('')
-  const [showAddCategory, setShowAddCategory] = useState(false)
+  // Available categories and topics
+  const [categories, setCategories] = useState<any[]>([])
+  const [topics, setTopics] = useState<any[]>([])
+  const [selectedCategoryId, setSelectedCategoryId] = useState('')
 
   // Questions
   const [questions, setQuestions] = useState<Question[]>([])
@@ -56,38 +57,65 @@ export default function CreateTestPage() {
       return
     }
 
-    // Fetch existing categories from database
+    // Fetch categories and topics from new API
     fetchCategories()
-
-    // No need to set default dates anymore
   }, [router])
 
   const fetchCategories = async () => {
     try {
-      const { data, error } = await supabase
-        .from('tests')
-        .select('category')
-        .not('category', 'is', null)
-
-      if (error) throw error
-
-      const uniqueCategories = Array.from(new Set(data?.map(t => t.category) || []))
-      setCategories(uniqueCategories.length > 0 ? uniqueCategories : ['General'])
+      const response = await fetch('/api/categories')
+      if (!response.ok) throw new Error('Failed to fetch categories')
+      
+      const categoriesData = await response.json()
+      setCategories(categoriesData)
+      
+      // Set first category as default if available
+      if (categoriesData.length > 0) {
+        setSelectedCategoryId(categoriesData[0].id)
+        setTestData(prev => ({ ...prev, category_id: categoriesData[0].id }))
+        fetchTopicsForCategory(categoriesData[0].id)
+      }
     } catch (error) {
       console.error('Error fetching categories:', error)
-      setCategories(['General'])
+      setCategories([])
     }
   }
 
-  const addNewCategory = () => {
-    if (newCategory.trim() && !categories.includes(newCategory.trim())) {
-      const updatedCategories = [...categories, newCategory.trim()]
-      setCategories(updatedCategories)
-      setTestData({ ...testData, category: newCategory.trim() })
-      setNewCategory('')
-      setShowAddCategory(false)
+  const fetchTopicsForCategory = async (categoryId: string) => {
+    try {
+      console.log('Fetching topics for category:', categoryId)
+      const response = await fetch(`/api/topics?category_id=${categoryId}`)
+      console.log('Topics API response status:', response.status)
+      
+      if (!response.ok) throw new Error('Failed to fetch topics')
+      
+      const topicsData = await response.json()
+      console.log('Topics data received:', topicsData)
+      setTopics(topicsData)
+      
+      // Set first topic as default if available
+      if (topicsData.length > 0) {
+        setTestData(prev => ({ ...prev, topic_id: topicsData[0].id }))
+      } else {
+        setTestData(prev => ({ ...prev, topic_id: '' }))
+      }
+    } catch (error) {
+      console.error('Error fetching topics:', error)
+      setTopics([])
     }
   }
+
+  const handleCategoryChange = (categoryId: string) => {
+    console.log('Category changed to:', categoryId)
+    setSelectedCategoryId(categoryId)
+    setTestData(prev => ({ ...prev, category_id: categoryId, topic_id: '' }))
+    if (categoryId) {
+      fetchTopicsForCategory(categoryId)
+    } else {
+      setTopics([])
+    }
+  }
+
 
   const addQuestion = () => {
     const newQuestion: Question = {
@@ -258,6 +286,16 @@ export default function CreateTestPage() {
       return false
     }
 
+    if (!testData.category_id) {
+      alert('Please select a category')
+      return false
+    }
+
+    if (!testData.topic_id) {
+      alert('Please select a topic')
+      return false
+    }
+
     if (questions.length === 0) {
       alert('Please add at least one question')
       return false
@@ -411,63 +449,42 @@ export default function CreateTestPage() {
                 />
               </div>
 
-              <div className="md:col-span-2">
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Category *
                 </label>
-                <div className="flex gap-2">
-                  <select
-                    value={testData.category}
-                    onChange={(e) => setTestData({ ...testData, category: e.target.value })}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[#002E2C] focus:border-[#002E2C]"
-                  >
-                    {categories.map(category => (
-                      <option key={category} value={category}>{category}</option>
-                    ))}
-                  </select>
-                  <Button
-                    type="button"
-                    onClick={() => setShowAddCategory(!showAddCategory)}
-                    variant="outline"
-                    size="sm"
-                    className="px-3"
-                  >
-                    <FolderPlus className="h-4 w-4" />
-                  </Button>
-                </div>
-                
-                {showAddCategory && (
-                  <div className="mt-2 flex gap-2">
-                    <Input
-                      value={newCategory}
-                      onChange={(e) => setNewCategory(e.target.value)}
-                      placeholder="Enter new category name (e.g., Patna High Court Exam)"
-                      className="flex-1"
-                      onKeyPress={(e) => e.key === 'Enter' && addNewCategory()}
-                    />
-                    <Button
-                      type="button"
-                      onClick={addNewCategory}
-                      size="sm"
-                      style={{backgroundColor: '#002E2C'}}
-                    >
-                      Add
-                    </Button>
-                    <Button
-                      type="button"
-                      onClick={() => {
-                        setShowAddCategory(false)
-                        setNewCategory('')
-                      }}
-                      variant="outline"
-                      size="sm"
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                )}
+                <select
+                  value={testData.category_id}
+                  onChange={(e) => handleCategoryChange(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[#002E2C] focus:border-[#002E2C]"
+                >
+                  <option value="">Select a category</option>
+                  {categories.map(category => (
+                    <option key={category.id} value={category.id}>{category.name}</option>
+                  ))}
+                </select>
                 <p className="text-xs text-gray-500 mt-1">
-                  Select existing category or create a new one (e.g., "Patna High Court Exam")
+                  Select the category for this test
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Topic *
+                </label>
+                <select
+                  value={testData.topic_id}
+                  onChange={(e) => setTestData(prev => ({ ...prev, topic_id: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[#002E2C] focus:border-[#002E2C]"
+                  disabled={!selectedCategoryId}
+                >
+                  <option value="">Select a topic</option>
+                  {topics.map(topic => (
+                    <option key={topic.id} value={topic.id}>{topic.name}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  {!selectedCategoryId ? 'Select a category first' : 'Select the topic for this test'}
                 </p>
               </div>
 

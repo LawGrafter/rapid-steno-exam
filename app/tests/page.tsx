@@ -22,14 +22,37 @@ type Test = {
   duration_minutes: number
   status: 'draft' | 'published' | 'coming_soon'
   question_count?: number
-  category?: string
+  topic_id: string
+  category_id: string
+  topic?: {
+    id: string
+    name: string
+    description: string
+  }
+  category?: {
+    id: string
+    name: string
+    description: string
+  }
+}
+
+type Topic = {
+  id: string
+  name: string
+  description: string
+  display_order: number
+  category_id: string
+  test_count: number
+  tests?: Test[]
 }
 
 type Category = {
   id: string
   name: string
   description: string
-  testCount: number
+  display_order: number
+  test_count: number
+  topics?: Topic[]
 }
 
 type Attempt = {
@@ -42,10 +65,12 @@ type Attempt = {
 export default function TestsPage() {
   const [tests, setTests] = useState<Test[]>([])
   const [categories, setCategories] = useState<Category[]>([])
+  const [topics, setTopics] = useState<Topic[]>([])
   const [filteredCategories, setFilteredCategories] = useState<Category[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedFilter, setSelectedFilter] = useState('all')
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  const [selectedTopic, setSelectedTopic] = useState<string | null>(null)
   const [selectedTest, setSelectedTest] = useState<Test | null>(null)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [attempts, setAttempts] = useState<Attempt[]>([])
@@ -58,6 +83,8 @@ export default function TestsPage() {
   const [userAccess, setUserAccess] = useState<UserAccess | null>(null)
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false)
   const [upgradeMessage, setUpgradeMessage] = useState('')
+  const [showCountdown, setShowCountdown] = useState(false)
+  const [countdown, setCountdown] = useState(5)
   
   // Initialize AccessControl
   const accessControl = new AccessControl(supabase)
@@ -131,18 +158,33 @@ export default function TestsPage() {
   const fetchTests = async () => {
     try {
       setIsCategoriesLoading(true)
-      // Get all tests except drafts
-      const { data: testsData, error: testsError } = await supabase
-        .from('tests')
-        .select('*')
-        .neq('status', 'draft')
-        .order('category', { ascending: true })
-
-      if (testsError) throw testsError
       
-      // Then get question counts for each test using separate queries
+      // Fetch categories with nested topics and tests using the new API
+      const response = await fetch('/api/categories')
+      if (!response.ok) throw new Error('Failed to fetch categories')
+      
+      const categoriesData: Category[] = await response.json()
+      
+      // Extract all tests from all topics for the tests state
+      const allTests: Test[] = []
+      categoriesData.forEach(category => {
+        category.topics?.forEach(topic => {
+          if (topic.tests) {
+            topic.tests.forEach(test => {
+              // Add question count
+              allTests.push({
+                ...test,
+                topic: { id: topic.id, name: topic.name, description: topic.description },
+                category: { id: category.id, name: category.name, description: category.description }
+              })
+            })
+          }
+        })
+      })
+      
+      // Get question counts for each test
       const testsWithCount = await Promise.all(
-        (testsData || []).map(async (test) => {
+        allTests.map(async (test) => {
           const { data: questionsData, error: countError } = await supabase
             .from('questions')
             .select('id')
@@ -157,37 +199,15 @@ export default function TestsPage() {
         })
       )
       
-      console.log('Tests with question counts:', testsWithCount)
+      console.log('Categories with topics:', categoriesData)
+      console.log('All tests:', testsWithCount)
+      
+      setCategories(categoriesData)
+      setFilteredCategories(categoriesData)
       setTests(testsWithCount)
       
-      // Create categories with test counts
-      const categoryMap = new Map<string, { name: string; description: string; count: number }>()
-      
-      testsWithCount.forEach((test) => {
-        const categoryName = test.category || 'General'
-        const existing = categoryMap.get(categoryName)
-        if (existing) {
-          existing.count += 1
-        } else {
-          categoryMap.set(categoryName, {
-            name: categoryName,
-            description: `Tests related to ${categoryName}`,
-            count: 1
-          })
-        }
-      })
-      
-      const categoriesArray: Category[] = Array.from(categoryMap.entries()).map(([name, data]) => ({
-        id: name.toLowerCase().replace(/\s+/g, '-'),
-        name: data.name,
-        description: data.description,
-        testCount: data.count
-      }))
-      
-      setCategories(categoriesArray)
-      setFilteredCategories(categoriesArray)
     } catch (error) {
-      console.error('Error fetching tests:', error)
+      console.error('Error fetching data:', error)
       setTests([])
       setCategories([])
       setFilteredCategories([])
@@ -247,11 +267,24 @@ export default function TestsPage() {
   }
 
   const handleConfirmStartTest = () => {
-    if (selectedTestId) {
-      router.push(`/test/${selectedTestId}`)
-    }
     setShowTestConfirmation(false)
-    setSelectedTestId(null)
+    setShowCountdown(true)
+    setCountdown(5)
+    
+    const countdownInterval = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(countdownInterval)
+          setShowCountdown(false)
+          if (selectedTestId) {
+            router.push(`/test/${selectedTestId}`)
+          }
+          setSelectedTestId(null)
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
   }
 
   const handleCancelStartTest = () => {
@@ -299,23 +332,52 @@ export default function TestsPage() {
       }
 
       setSelectedCategory(categoryId)
+      setSelectedTopic(null) // Reset topic selection when selecting category
     } catch (error) {
       console.error('Error checking category access:', error)
       // Don't show upgrade dialog for errors - just allow access
       setSelectedCategory(categoryId)
+      setSelectedTopic(null)
     }
+  }
+
+  const handleTopicClick = (topicId: string) => {
+    setSelectedTopic(topicId)
   }
 
   const handleBackToCategories = () => {
     setSelectedCategory(null)
+    setSelectedTopic(null)
   }
 
-  const getTestsForCategory = (categoryId: string) => {
-    const categoryTests = tests.filter(test => test.category === categories.find(c => c.id === categoryId)?.name)
+  const handleBackToTopics = () => {
+    setSelectedTopic(null)
+  }
+
+  const getTopicsForCategory = (categoryId: string) => {
+    const category = categories.find(c => c.id === categoryId)
+    return category?.topics || []
+  }
+
+  const getTestsForTopic = (topicId: string) => {
+    // Find the topic in categories data
+    let topicTests: Test[] = []
     
-    if (!searchQuery) return categoryTests
+    categories.forEach(category => {
+      category.topics?.forEach(topic => {
+        if (topic.id === topicId && topic.tests) {
+          topicTests = topic.tests.map(test => ({
+            ...test,
+            topic: { id: topic.id, name: topic.name, description: topic.description },
+            category: { id: category.id, name: category.name, description: category.description }
+          }))
+        }
+      })
+    })
     
-    return categoryTests.filter(test => 
+    if (!searchQuery) return topicTests
+    
+    return topicTests.filter(test => 
       test.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       test.description.toLowerCase().includes(searchQuery.toLowerCase())
     )
@@ -355,9 +417,11 @@ export default function TestsPage() {
                 <p className="text-sm text-gray-600 hidden sm:block">
                   {searchParams.get('demo') === 'true' 
                     ? 'Try our software with sample tests' 
-                    : selectedCategory 
-                      ? `Showing tests for ${categories.find(c => c.id === selectedCategory)?.name}` 
-                      : `Welcome, ${user.full_name}`
+                    : selectedTopic
+                      ? `${categories.find(c => c.id === selectedCategory)?.name} > ${categories.find(c => c.id === selectedCategory)?.topics?.find(t => t.id === selectedTopic)?.name}`
+                      : selectedCategory 
+                        ? `Showing topics for ${categories.find(c => c.id === selectedCategory)?.name}` 
+                        : `Welcome, ${user.full_name}`
                   }
                 </p>
               </div>
@@ -377,17 +441,27 @@ export default function TestsPage() {
                 />
               </div>
               
-              {selectedCategory && (
+              {selectedTopic ? (
+                <Button
+                  onClick={handleBackToTopics}
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-2 border-[#002E2C] text-[#002E2C] hover:bg-[#002E2C] hover:text-white transition-all duration-200 text-sm px-3 py-2 whitespace-nowrap"
+                >
+                  <span className="hidden sm:inline">← Topics</span>
+                  <span className="sm:hidden">←</span>
+                </Button>
+              ) : selectedCategory ? (
                 <Button
                   onClick={handleBackToCategories}
                   variant="outline"
                   size="sm"
                   className="flex items-center gap-2 border-[#002E2C] text-[#002E2C] hover:bg-[#002E2C] hover:text-white transition-all duration-200 text-sm px-3 py-2 whitespace-nowrap"
                 >
-                  <span className="hidden sm:inline">← Home</span>
+                  <span className="hidden sm:inline">← Categories</span>
                   <span className="sm:hidden">←</span>
                 </Button>
-              )}
+              ) : null}
             </div>
             
             {/* Desktop Navigation - Hidden on Mobile */}
@@ -552,7 +626,7 @@ export default function TestsPage() {
                         </div>
                         <div className="flex items-center justify-center gap-2 mb-3 bg-[#002E2C]/5 rounded-full px-4 py-2 mx-auto w-fit">
                           <FileText className="h-4 w-4 text-[#002E2C]" />
-                          <span className="text-sm font-semibold text-[#002E2C]">{category.testCount} Tests Available</span>
+                          <span className="text-sm font-semibold text-[#002E2C]">{category.test_count} Tests Available</span>
                         </div>
                       </div>
                     </CardHeader>
@@ -562,7 +636,7 @@ export default function TestsPage() {
                         onClick={() => handleCategoryClick(category.id)}
                         className="w-full bg-gradient-to-r from-[#002E2C] to-emerald-600 hover:from-[#003d3a] hover:to-emerald-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg text-lg"
                       >
-                        Explore Tests
+                        Explore Topics
                       </Button>
                     </CardContent>
                   </Card>
@@ -570,22 +644,71 @@ export default function TestsPage() {
               </div>
             )}
           </>
-        ) : (
-          // Tests View for Selected Category
+        ) : !selectedTopic ? (
+          // Topics View for Selected Category
           <>
             {(() => {
-              const categoryTests = getTestsForCategory(selectedCategory)
+              const categoryTopics = getTopicsForCategory(selectedCategory)
               return (
                 <>
-                  {categoryTests.length === 0 ? (
+                  {categoryTopics.length === 0 ? (
                     <div className="text-center py-16 bg-white/95 backdrop-blur-lg rounded-xl shadow-lg border border-[#002E2C]/10">
                       <FileText className="h-16 w-16 text-gray-400 mx-auto mb-6" />
-                      <h3 className="text-xl font-semibold text-[#002E2C] mb-3">No tests available</h3>
-                      <p className="text-gray-600">There are no tests in this category at the moment.</p>
+                      <h3 className="text-xl font-semibold text-[#002E2C] mb-3">No topics available</h3>
+                      <p className="text-gray-600">There are no topics in this category at the moment.</p>
                     </div>
                   ) : (
                     <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-                      {categoryTests.map((test) => {
+                      {categoryTopics.map((topic) => (
+                        <Card key={topic.id} className="bg-white/95 backdrop-blur-lg border-2 border-[#002E2C]/10 hover:border-[#002E2C]/30 hover:shadow-2xl transition-all duration-300 cursor-pointer group transform hover:scale-105">
+                          <CardHeader className="text-center pb-4 relative overflow-hidden">
+                            <div className="absolute inset-0 bg-gradient-to-br from-emerald-50/50 to-blue-50/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                            <div className="relative z-10">
+                              <div className="mx-auto mb-6 p-4 bg-gradient-to-br from-emerald-600 to-[#002E2C] rounded-full shadow-lg group-hover:scale-110 transition-transform duration-300 w-16 h-16 flex items-center justify-center">
+                                <div className="text-white">
+                                  <FileText className="h-6 w-6" />
+                                </div>
+                              </div>
+                              <div className="flex items-center justify-center gap-2 mb-3 bg-emerald-600/5 rounded-full px-4 py-2 mx-auto w-fit">
+                                <FileText className="h-4 w-4 text-emerald-600" />
+                                <span className="text-sm font-semibold text-emerald-600">{topic.test_count} Tests</span>
+                              </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent className="text-center relative z-10">
+                            <CardTitle className="text-xl mb-3 text-[#002E2C] font-bold">{topic.name}</CardTitle>
+                            <p className="text-gray-600 text-sm mb-6">{topic.description}</p>
+                            <Button
+                              onClick={() => handleTopicClick(topic.id)}
+                              className="w-full bg-gradient-to-r from-emerald-600 to-[#002E2C] hover:from-emerald-700 hover:to-[#003d3a] text-white font-semibold py-3 px-6 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg text-lg"
+                            >
+                              View Tests
+                            </Button>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )
+            })()}
+          </>
+        ) : (
+          // Tests View for Selected Topic
+          <>
+            {(() => {
+              const topicTests = getTestsForTopic(selectedTopic)
+              return (
+                <>
+                  {topicTests.length === 0 ? (
+                    <div className="text-center py-16 bg-white/95 backdrop-blur-lg rounded-xl shadow-lg border border-[#002E2C]/10">
+                      <FileText className="h-16 w-16 text-gray-400 mx-auto mb-6" />
+                      <h3 className="text-xl font-semibold text-[#002E2C] mb-3">No tests available</h3>
+                      <p className="text-gray-600">There are no tests in this topic at the moment.</p>
+                    </div>
+                  ) : (
+                    <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+                      {topicTests.map((test: Test) => {
                         const status = getTestStatus(test)
                         
                         return (
@@ -593,8 +716,10 @@ export default function TestsPage() {
                             {/* Header Section */}
                             <div className="mb-8">
                               <h3 className="font-bold text-2xl text-gray-900 leading-tight mb-4">{test.title}</h3>
-                              <div className="inline-flex items-center px-4 py-2 rounded-full bg-gradient-to-r from-blue-50 to-emerald-50 border border-blue-200">
-                                <span className="text-sm font-medium text-[#002E2C]">{test.category}</span>
+                              <div className="flex flex-wrap gap-2 mb-3">
+                                <div className="inline-flex items-center px-3 py-1 rounded-full bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200">
+                                  <span className="text-xs font-medium text-[#002E2C]">{test.category?.name || 'General'}</span>
+                                </div>
                               </div>
                             </div>
 
@@ -704,6 +829,43 @@ export default function TestsPage() {
                 >
                   I Agree - Start Test
                 </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Countdown Modal */}
+      {showCountdown && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 text-center shadow-2xl">
+            <div className="mb-6">
+              <div className="w-20 h-20 bg-gradient-to-r from-[#002E2C] to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-3xl font-bold text-white">{countdown}</span>
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-2">Test Starting In...</h3>
+              <p className="text-gray-600">
+                Get ready! Your test will begin in <span className="font-semibold text-[#002E2C]">{countdown} second{countdown !== 1 ? 's' : ''}</span>
+              </p>
+            </div>
+            
+            <div className="space-y-3">
+              <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                <span>Timer will start automatically</span>
+              </div>
+              <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
+                <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                <span>Make sure you're ready to begin</span>
+              </div>
+            </div>
+
+            <div className="mt-6">
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div 
+                  className="bg-gradient-to-r from-[#002E2C] to-emerald-600 h-2 rounded-full transition-all duration-1000 ease-linear"
+                  style={{ width: `${((5 - countdown) / 5) * 100}%` }}
+                ></div>
               </div>
             </div>
           </div>

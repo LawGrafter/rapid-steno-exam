@@ -6,24 +6,49 @@ import Link from 'next/link'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { supabase } from '@/lib/supabase'
-import { ArrowLeft, Plus, FileText, Clock, Calendar, Edit, Trash2, RotateCcw } from 'lucide-react'
+import { ArrowLeft, Plus, FileText, Clock, Calendar, Edit, Trash2, RotateCcw, Search, Filter } from 'lucide-react'
 
 type Test = {
   id: string
   title: string
   description: string
-  category: string
+  category_id: string
+  topic_id: string
   duration_minutes: number
   status: 'draft' | 'published' | 'coming_soon'
   created_at: string
+  category?: { id: string; name: string } | null
+  topic?: { id: string; name: string } | null
+  question_count?: number
+}
+
+type Category = {
+  id: string
+  name: string
+}
+
+type Topic = {
+  id: string
+  name: string
+  category_id: string
 }
 
 export default function TestsPage() {
   const router = useRouter()
   const [tests, setTests] = useState<Test[]>([])
+  const [filteredTests, setFilteredTests] = useState<Test[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
+  const [topics, setTopics] = useState<Topic[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  
+  // Filter states
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState<string>('all')
+  const [selectedTopic, setSelectedTopic] = useState<string>('all')
 
   useEffect(() => {
     const adminUser = localStorage.getItem('adminUser')
@@ -35,19 +60,88 @@ export default function TestsPage() {
     fetchTests()
   }, [router])
 
+  // Filter functions
+  useEffect(() => {
+    let filtered = tests
+
+    if (searchQuery) {
+      filtered = filtered.filter(test => 
+        test.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        test.description?.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    }
+
+    if (selectedCategory && selectedCategory !== 'all') {
+      filtered = filtered.filter(test => test.category_id === selectedCategory)
+    }
+
+    if (selectedTopic && selectedTopic !== 'all') {
+      filtered = filtered.filter(test => test.topic_id === selectedTopic)
+    }
+
+    setFilteredTests(filtered)
+  }, [tests, searchQuery, selectedCategory, selectedTopic])
+
+  const handleCategoryChange = (categoryId: string) => {
+    setSelectedCategory(categoryId)
+    setSelectedTopic('all') // Reset topic when category changes
+  }
+
+  const getTopicsForCategory = (categoryId: string) => {
+    return topics.filter(topic => topic.category_id === categoryId)
+  }
+
   const fetchTests = async () => {
     try {
-      const { data, error } = await supabase
+      // Fetch tests with category and topic information
+      const { data: testsData, error } = await supabase
         .from('tests')
-        .select('*')
+        .select('id, title, description, category_id, topic_id, duration_minutes, status, created_at')
         .order('created_at', { ascending: false })
 
       if (error) throw error
-      setTests(data || [])
+
+      // Get category and topic info for each test
+      const testsWithInfo = await Promise.all(
+        (testsData || []).map(async (test) => {
+          const [categoryResult, topicResult, questionResult] = await Promise.all([
+            supabase.from('test_categories').select('id, name').eq('id', test.category_id).single(),
+            supabase.from('test_topics').select('id, name').eq('id', test.topic_id).single(),
+            supabase.from('questions').select('id', { count: 'exact', head: true }).eq('test_id', test.id)
+          ])
+
+          return {
+            ...test,
+            category: categoryResult.data,
+            topic: topicResult.data,
+            question_count: questionResult.count || 0
+          }
+        })
+      )
+
+      setTests(testsWithInfo)
+      setFilteredTests(testsWithInfo)
+      
+      // Fetch categories and topics for filters
+      await fetchCategoriesAndTopics()
     } catch (error) {
       console.error('Error fetching tests:', error)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const fetchCategoriesAndTopics = async () => {
+    try {
+      const [categoriesResult, topicsResult] = await Promise.all([
+        supabase.from('test_categories').select('id, name').order('name'),
+        supabase.from('test_topics').select('id, name, category_id').order('name')
+      ])
+
+      if (categoriesResult.data) setCategories(categoriesResult.data)
+      if (topicsResult.data) setTopics(topicsResult.data)
+    } catch (error) {
+      console.error('Error fetching categories and topics:', error)
     }
   }
 
@@ -140,7 +234,75 @@ export default function TestsPage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {tests.length === 0 ? (
+        {/* Filters Section */}
+        <div className="mb-6 bg-white p-4 rounded-lg shadow-sm border">
+          <div className="flex items-center gap-2 mb-4">
+            <Filter className="h-5 w-5 text-gray-500" />
+            <h3 className="font-medium text-gray-900">Filters</h3>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="Search tests..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            
+            {/* Category Filter */}
+            <Select value={selectedCategory} onValueChange={handleCategoryChange}>
+              <SelectTrigger>
+                <SelectValue placeholder="All Categories" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                {categories.map(category => (
+                  <SelectItem key={category.id} value={category.id}>
+                    {category.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            
+            {/* Topic Filter */}
+            <Select 
+              value={selectedTopic} 
+              onValueChange={setSelectedTopic}
+              disabled={!selectedCategory || selectedCategory === 'all'}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder={selectedCategory && selectedCategory !== 'all' ? "All Topics" : "Select Category First"} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Topics</SelectItem>
+                {getTopicsForCategory(selectedCategory).map(topic => (
+                  <SelectItem key={topic.id} value={topic.id}>
+                    {topic.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            
+            {/* Clear Filters */}
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setSearchQuery('')
+                setSelectedCategory('all')
+                setSelectedTopic('all')
+              }}
+              className="w-full"
+            >
+              Clear Filters
+            </Button>
+          </div>
+        </div>
+
+        {filteredTests.length === 0 ? (
           <div className="text-center py-12">
             <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">No tests found</h3>
@@ -154,7 +316,7 @@ export default function TestsPage() {
           </div>
         ) : (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {tests.map((test) => {
+            {filteredTests.map((test) => {
               const status = getStatusInfo(test)
               return (
                 <Card key={test.id} className="hover:shadow-md transition-shadow">
@@ -177,11 +339,13 @@ export default function TestsPage() {
                       </div>
                       <div className="flex items-center gap-1">
                         <FileText className="h-4 w-4" />
-                        {test.category || 'General'}
+                        {test.question_count || 0}
                       </div>
                     </div>
                     
-                    <div className="text-xs text-gray-500">
+                    <div className="text-xs text-gray-500 space-y-1">
+                      <p><span className="font-medium">Category:</span> {test.category?.name || 'Unknown'}</p>
+                      <p><span className="font-medium">Topic:</span> {test.topic?.name || 'Unknown'}</p>
                       <p>Created: {new Date(test.created_at).toLocaleDateString()}</p>
                     </div>
 

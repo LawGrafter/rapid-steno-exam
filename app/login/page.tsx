@@ -183,7 +183,8 @@ export default function LoginPage() {
               </p>
               <p className="text-xs text-gray-500">Contact administrator for enrollment</p>
               
-              <div className="pt-2">
+              {/* Demo button hidden as requested */}
+              {/* <div className="pt-2">
                 <Button
                   onClick={handleDemoAccess}
                   variant="outline"
@@ -193,7 +194,7 @@ export default function LoginPage() {
                   Test Software (Demo)
                 </Button>
                 <p className="text-xs text-gray-400 mt-2">Try our software with a sample test</p>
-              </div>
+              </div> */}
             </div>
           </form>
         </CardContent>

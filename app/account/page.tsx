@@ -335,33 +335,39 @@ export default function MyAccountPage() {
               ) : (
                 <div className="space-y-4">
                   {attempts.map((attempt) => (
-                    <div key={attempt.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-gray-900">{attempt.test.title}</h3>
-                        <p className="text-sm text-gray-600">{attempt.test.description || 'General Test'}</p>
-                        <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
-                          <span className="flex items-center gap-1">
-                            <Calendar className="h-3 w-3" />
-                            {new Date(attempt.started_at).toLocaleDateString()}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            {attempt.test.duration_minutes} min
-                          </span>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center gap-4">
-                        <div className="text-right">
-                          <div className="font-semibold">{getScoreDisplay(attempt)}</div>
-                          {getStatusBadge(attempt)}
+                    <div key={attempt.id} className="p-4 border rounded-lg hover:bg-gray-50">
+                      {/* Mobile-first layout */}
+                      <div className="space-y-3">
+                        {/* Test title and description */}
+                        <div>
+                          <h3 className="font-semibold text-gray-900 text-sm sm:text-base">{attempt.test.title}</h3>
+                          <p className="text-xs sm:text-sm text-gray-600 mt-1">{attempt.test.description || 'General Test'}</p>
                         </div>
                         
-                        <div className="flex gap-2">
+                        {/* Date and duration - responsive flex */}
+                        <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs text-gray-500">
+                          <span className="flex items-center gap-1">
+                            <Calendar className="h-3 w-3 flex-shrink-0" />
+                            <span className="whitespace-nowrap">{new Date(attempt.started_at).toLocaleDateString()}</span>
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Clock className="h-3 w-3 flex-shrink-0" />
+                            <span className="whitespace-nowrap">{attempt.test.duration_minutes} min</span>
+                          </span>
+                        </div>
+                        
+                        {/* Score and actions - stacked on mobile, side by side on larger screens */}
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                            <div className="font-semibold text-sm">{getScoreDisplay(attempt)}</div>
+                            {getStatusBadge(attempt)}
+                          </div>
+                          
                           {attempt.status !== 'submitted' && (
                             <Button
                               size="sm"
                               onClick={() => router.push(`/test/${attempt.test_id}`)}
+                              className="self-start sm:self-auto"
                             >
                               Continue
                             </Button>

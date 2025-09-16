@@ -19,7 +19,8 @@ type Test = {
   id: string
   title: string
   description: string
-  category: string
+  category_id: string
+  topic_id: string
   duration_minutes: number
   starts_at: string
   ends_at: string
@@ -28,6 +29,19 @@ type Test = {
   shuffle_options: boolean
   negative_marking: boolean
   created_at: string
+}
+
+type Category = {
+  id: string
+  name: string
+  description: string
+}
+
+type Topic = {
+  id: string
+  name: string
+  description: string
+  category_id: string
 }
 
 type Question = {
@@ -62,7 +76,8 @@ export default function EditTestPage() {
   const [testForm, setTestForm] = useState({
     title: '',
     description: '',
-    category: 'General',
+    category_id: '',
+    topic_id: '',
     duration_minutes: 60,
     status: 'draft',
     shuffle_questions: true,
@@ -70,10 +85,10 @@ export default function EditTestPage() {
     negative_marking: false
   })
 
-  // Categories management
-  const [categories, setCategories] = useState<string[]>(['General'])
-  const [newCategory, setNewCategory] = useState('')
-  const [showAddCategory, setShowAddCategory] = useState(false)
+  // Categories and topics management
+  const [categories, setCategories] = useState<Category[]>([])
+  const [topics, setTopics] = useState<Topic[]>([])
+  const [selectedCategoryId, setSelectedCategoryId] = useState('')
   
   // Question dialog states
   const [isQuestionDialogOpen, setIsQuestionDialogOpen] = useState(false)
@@ -94,6 +109,7 @@ export default function EditTestPage() {
     if (testId) {
       fetchTest()
       fetchQuestions()
+      fetchCategories()
     }
   }, [testId])
 
@@ -101,26 +117,36 @@ export default function EditTestPage() {
     try {
       const { data, error } = await supabase
         .from('tests')
-        .select('*')
+        .select(`
+          *,
+          test_categories!inner(id, name),
+          test_topics!inner(id, name)
+        `)
         .eq('id', testId)
         .single()
 
       if (error) throw error
-      
-      setTest(data)
-      setTestForm({
-        title: data.title,
-        description: data.description || '',
-        category: data.category || 'General',
-        duration_minutes: data.duration_minutes,
-        status: data.status,
-        shuffle_questions: data.shuffle_questions,
-        shuffle_options: data.shuffle_options,
-        negative_marking: data.negative_marking
-      })
 
-      // Fetch categories
-      fetchCategories()
+      if (data) {
+        setTest(data)
+        setTestForm({
+          title: data.title || '',
+          description: data.description || '',
+          category_id: data.category_id || '',
+          topic_id: data.topic_id || '',
+          duration_minutes: data.duration_minutes || 60,
+          status: data.status || 'draft',
+          shuffle_questions: data.shuffle_questions || true,
+          shuffle_options: data.shuffle_options || true,
+          negative_marking: data.negative_marking || false
+        })
+        setSelectedCategoryId(data.category_id || '')
+        
+        // Fetch topics for the current category
+        if (data.category_id) {
+          await fetchTopicsForCategory(data.category_id)
+        }
+      }
     } catch (error) {
       console.error('Error fetching test:', error)
       setError('Failed to fetch test')
@@ -130,28 +156,38 @@ export default function EditTestPage() {
   const fetchCategories = async () => {
     try {
       const { data, error } = await supabase
-        .from('tests')
-        .select('category')
-        .not('category', 'is', null)
+        .from('test_categories')
+        .select('*')
+        .order('display_order')
 
       if (error) throw error
-
-      const uniqueCategories = Array.from(new Set(data?.map(t => t.category) || []))
-      setCategories(uniqueCategories.length > 0 ? uniqueCategories : ['General'])
+      setCategories(data || [])
     } catch (error) {
       console.error('Error fetching categories:', error)
-      setCategories(['General'])
+      setCategories([])
     }
   }
 
-  const addNewCategory = () => {
-    if (newCategory.trim() && !categories.includes(newCategory.trim())) {
-      const updatedCategories = [...categories, newCategory.trim()]
-      setCategories(updatedCategories)
-      setTestForm({ ...testForm, category: newCategory.trim() })
-      setNewCategory('')
-      setShowAddCategory(false)
+  const fetchTopicsForCategory = async (categoryId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('test_topics')
+        .select('*')
+        .eq('category_id', categoryId)
+        .order('display_order')
+
+      if (error) throw error
+      setTopics(data || [])
+    } catch (error) {
+      console.error('Error fetching topics:', error)
+      setTopics([])
     }
+  }
+
+  const handleCategoryChange = async (categoryId: string) => {
+    setSelectedCategoryId(categoryId)
+    setTestForm({ ...testForm, category_id: categoryId, topic_id: '' })
+    await fetchTopicsForCategory(categoryId)
   }
 
   const fetchQuestions = async () => {
@@ -199,7 +235,8 @@ export default function EditTestPage() {
         .update({
           title: testForm.title,
           description: testForm.description,
-          category: testForm.category,
+          category_id: testForm.category_id,
+          topic_id: testForm.topic_id,
           duration_minutes: testForm.duration_minutes,
           status: testForm.status,
           shuffle_questions: testForm.shuffle_questions,
@@ -436,62 +473,42 @@ export default function EditTestPage() {
                 </Select>
               </div>
               
-              <div className="md:col-span-2">
+              <div>
                 <Label htmlFor="category">Category</Label>
-                <div className="flex gap-2">
-                  <select
-                    id="category"
-                    value={testForm.category}
-                    onChange={(e) => setTestForm({ ...testForm, category: e.target.value })}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[#002E2C] focus:border-[#002E2C]"
-                  >
+                <Select value={testForm.category_id} onValueChange={handleCategoryChange}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a category" />
+                  </SelectTrigger>
+                  <SelectContent>
                     {categories.map(category => (
-                      <option key={category} value={category}>{category}</option>
+                      <SelectItem key={category.id} value={category.id}>
+                        {category.name}
+                      </SelectItem>
                     ))}
-                  </select>
-                  <Button
-                    type="button"
-                    onClick={() => setShowAddCategory(!showAddCategory)}
-                    variant="outline"
-                    size="sm"
-                    className="px-3"
-                  >
-                    <FolderPlus className="h-4 w-4" />
-                  </Button>
-                </div>
-                
-                {showAddCategory && (
-                  <div className="mt-2 flex gap-2">
-                    <Input
-                      value={newCategory}
-                      onChange={(e) => setNewCategory(e.target.value)}
-                      placeholder="Enter new category name (e.g., Patna High Court Exam)"
-                      className="flex-1"
-                      onKeyPress={(e) => e.key === 'Enter' && addNewCategory()}
-                    />
-                    <Button
-                      type="button"
-                      onClick={addNewCategory}
-                      size="sm"
-                      style={{backgroundColor: '#002E2C'}}
-                    >
-                      Add
-                    </Button>
-                    <Button
-                      type="button"
-                      onClick={() => {
-                        setShowAddCategory(false)
-                        setNewCategory('')
-                      }}
-                      variant="outline"
-                      size="sm"
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                )}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div>
+                <Label htmlFor="topic">Topic</Label>
+                <Select 
+                  value={testForm.topic_id} 
+                  onValueChange={(value) => setTestForm({ ...testForm, topic_id: value })}
+                  disabled={!selectedCategoryId}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={selectedCategoryId ? "Select a topic" : "Select category first"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {topics.map(topic => (
+                      <SelectItem key={topic.id} value={topic.id}>
+                        {topic.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <p className="text-xs text-gray-500 mt-1">
-                  Select existing category or create a new one (e.g., "Patna High Court Exam")
+                  Choose the topic where this test belongs
                 </p>
               </div>
               <div>

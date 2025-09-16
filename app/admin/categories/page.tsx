@@ -9,11 +9,34 @@ import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { supabase } from '@/lib/supabase'
-import { Plus, Trash2, ArrowLeft } from 'lucide-react'
+import { Plus, Trash2, ArrowLeft, Edit, FolderOpen, FileText } from 'lucide-react'
+import { toast } from '@/hooks/use-toast'
+
+type TestCategory = {
+  id: string
+  name: string
+  description: string
+  display_order: number
+}
+
+type TestTopic = {
+  id: string
+  name: string
+  description: string
+  category_id: string
+  display_order: number
+}
+
+type Test = {
+  id: string
+  title: string
+  topic_id: string
+}
 
 type Material = {
   id: string
   title: string
+  description?: string
   category_id: string
 }
 
@@ -21,6 +44,8 @@ type MaterialCategory = {
   id: string
   name: string
   description: string
+  display_order: number
+  material_count?: number
 }
 
 export default function AdminCategoriesPage() {
