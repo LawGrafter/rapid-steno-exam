@@ -37,7 +37,6 @@ type AttemptWithDetails = {
 type Test = {
   id: string
   title: string
-  category: string
 }
 
 export default function ResultsPage() {
@@ -69,16 +68,14 @@ export default function ResultsPage() {
       // Fetch tests
       const { data: testsData, error: testsError } = await supabase
         .from('tests')
-        .select('id, title, category')
+        .select('id, title')
         .order('title')
 
       if (testsError) throw testsError
       setTests(testsData || [])
 
-      // Extract unique categories
-      const categorySet = new Set(testsData?.map(test => test.category).filter(Boolean))
-      const uniqueCategories = Array.from(categorySet)
-      setCategories(uniqueCategories)
+      // Set empty categories since column doesn't exist
+      setCategories([])
 
       // Fetch attempts with test questions and answers to get total count
       const { data: attemptsData, error: attemptsError } = await supabase
@@ -87,8 +84,7 @@ export default function ResultsPage() {
           *,
           users (full_name),
           tests (
-            title, 
-            category,
+            title,
             questions (id)
           ),
           answers (is_correct, chosen_option_id)
