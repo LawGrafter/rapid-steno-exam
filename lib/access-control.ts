@@ -77,6 +77,16 @@ export class AccessControl {
   }
 
   canAccessCategory(userAccess: UserAccess, categoryName: string): boolean {
+    const lowerCaseName = categoryName.toLowerCase()
+    
+    // Allow access to sample/demo categories for everyone (including demo users)
+    if (lowerCaseName.includes('sample') || 
+        lowerCaseName.includes('demo') || 
+        lowerCaseName.includes('sample test') ||
+        lowerCaseName.startsWith('sample')) {
+      return true
+    }
+    
     // AHC plan has access to everything
     if (userAccess.hasAHCPlan) {
       return true
@@ -141,10 +151,25 @@ export class AccessControl {
   }
 
   private isAHCContent(categoryName: string): boolean {
-    const ahcKeywords = ['allahabad', 'ahc', 'allahabad high court']
     const lowerCaseName = categoryName.toLowerCase()
     
-    return ahcKeywords.some(keyword => lowerCaseName.includes(keyword))
+    console.log('Checking AHC content for category:', categoryName, 'lowercase:', lowerCaseName)
+    
+    // Don't treat sample/demo categories as AHC content
+    if (lowerCaseName.includes('sample') || 
+        lowerCaseName.includes('demo') || 
+        lowerCaseName.includes('sample test') ||
+        lowerCaseName.startsWith('sample')) {
+      console.log('Category excluded from AHC (sample/demo):', categoryName)
+      return false
+    }
+    
+    // Only treat as AHC content if it's specifically the premium Allahabad High Court category
+    const ahcKeywords = ['allahabad', 'ahc', 'allahabad high court']
+    const isAHC = ahcKeywords.some(keyword => lowerCaseName.includes(keyword))
+    
+    console.log('AHC check result for', categoryName, ':', isAHC)
+    return isAHC
   }
 
   getUpgradeMessage(categoryName: string): string {
