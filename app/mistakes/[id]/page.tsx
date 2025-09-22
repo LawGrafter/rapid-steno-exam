@@ -293,7 +293,7 @@ export default function MistakesPage() {
                     {/* Answer Options */}
                     <div className="space-y-3">
                       <h4 className="font-medium text-gray-700 mb-3">Answer Options:</h4>
-                      {(mistake.options || []).map((option, optionIndex) => (
+                      {(mistake.options || []).map((option: any, optionIndex: number) => (
                         <div 
                           key={optionIndex}
                           className={`p-4 rounded-lg border-2 ${
