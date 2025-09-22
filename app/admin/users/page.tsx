@@ -46,6 +46,13 @@ interface Plan {
   display_name: string
 }
 
+// Helper function to safely get error message
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) return error.message
+  if (typeof error === 'string') return error
+  return 'Unknown error occurred'
+}
+
 export default function UserManagementPage() {
   const [subscriptions, setSubscriptions] = useState<UserSubscription[]>([])
   const [loading, setLoading] = useState(true)
@@ -123,7 +130,7 @@ export default function UserManagementPage() {
         .select('*')
 
       if (subsError) {
-        console.error('Subscriptions error:', subsError)
+        console.error('Subscriptions error:', getErrorMessage(subsError))
         setSubscriptions([])
         return
       }
@@ -134,7 +141,7 @@ export default function UserManagementPage() {
         .select('*')
 
       if (plansError) {
-        console.error('Plans error:', plansError)
+        console.error('Plans error:', getErrorMessage(plansError))
         setSubscriptions([])
         return
       }
@@ -145,7 +152,7 @@ export default function UserManagementPage() {
         .select('id, email, full_name')
 
       if (usersError) {
-        console.error('Users error:', usersError)
+        console.error('Users error:', getErrorMessage(usersError))
       }
 
       // Set plans state
@@ -178,7 +185,7 @@ export default function UserManagementPage() {
 
       setSubscriptions(combinedData)
     } catch (error) {
-      console.error('Error fetching subscriptions:', error)
+      console.error('Error fetching subscriptions:', getErrorMessage(error))
       setSubscriptions([])
     } finally {
       setLoading(false)
@@ -213,7 +220,7 @@ export default function UserManagementPage() {
         .eq('id', subscription.user_id)
 
       if (userError) {
-        console.warn('Failed to delete user record:', userError)
+        console.warn('Failed to delete user record:', getErrorMessage(userError))
       }
 
       toast({
@@ -223,10 +230,10 @@ export default function UserManagementPage() {
 
       fetchSubscriptions()
     } catch (error) {
-      console.error('Error deleting user:', error)
+      console.error('Error deleting user:', getErrorMessage(error))
       toast({
         title: "Error",
-        description: `Failed to delete user: ${error.message}`,
+        description: `Failed to delete user: ${getErrorMessage(error)}`,
         variant: "destructive"
       })
     }
@@ -262,10 +269,10 @@ export default function UserManagementPage() {
 
       fetchSubscriptions()
     } catch (error) {
-      console.error('Error updating user status:', error)
+      console.error('Error updating user status:', getErrorMessage(error))
       toast({
         title: "Error",
-        description: `Failed to update user status: ${error.message}`,
+        description: `Failed to update user status: ${getErrorMessage(error)}`,
         variant: "destructive"
       })
     }
@@ -324,7 +331,7 @@ export default function UserManagementPage() {
           .eq('id', userData.id)
         
         if (roleUpdateError) {
-          console.warn('Failed to update user role:', roleUpdateError)
+          console.warn('Failed to update user role:', getErrorMessage(roleUpdateError))
         }
       }
 
@@ -399,10 +406,10 @@ export default function UserManagementPage() {
       
       fetchSubscriptions()
     } catch (error) {
-      console.error('Error creating subscription:', error)
+      console.error('Error creating subscription:', getErrorMessage(error))
       toast({
         title: "Error",
-        description: "Failed to create subscription",
+        description: `Failed to create subscription: ${getErrorMessage(error)}`,
         variant: "destructive"
       })
     }
@@ -463,7 +470,7 @@ export default function UserManagementPage() {
           .eq('is_active', true)
 
         if (statusError) {
-          console.warn('Failed to fix subscription status:', statusError)
+          console.warn('Failed to fix subscription status:', getErrorMessage(statusError))
         }
 
         toast({
@@ -474,10 +481,10 @@ export default function UserManagementPage() {
 
       fetchSubscriptions()
     } catch (error) {
-      console.error('Error fixing user access:', error)
+      console.error('Error fixing user access:', getErrorMessage(error))
       toast({
         title: "Error",
-        description: `Failed to fix user access: ${error.message}`,
+        description: `Failed to fix user access: ${getErrorMessage(error)}`,
         variant: "destructive"
       })
     }
@@ -792,7 +799,7 @@ export default function UserManagementPage() {
                         {subscription.deactivation_reason && (
                           <div>
                             <span className="text-gray-500">Reason:</span>
-                            <p className="font-medium text-xs">
+                            <p className="text-xs text-gray-500">
                               {subscription.deactivation_reason}
                             </p>
                           </div>

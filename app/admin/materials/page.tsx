@@ -39,7 +39,6 @@ type Test = {
   id: string
   title: string
   status: 'draft' | 'published' | 'coming_soon'
-  category: string
 }
 
 export default function AdminMaterialsPage() {
@@ -64,7 +63,6 @@ export default function AdminMaterialsPage() {
     tags: [] as string[],
     pdf_url: '',
     category_id: '',
-    test_category: '',
     associated_test_id: '',
     status: 'draft' as 'draft' | 'published' | 'coming_soon'
   })
@@ -91,6 +89,8 @@ export default function AdminMaterialsPage() {
   
   const loadData = async () => {
     try {
+      console.log('Starting to load admin data...')
+      
       // Load categories from database
       const { data: categoriesData, error: categoriesError } = await supabase
         .from('material_categories')
@@ -99,50 +99,68 @@ export default function AdminMaterialsPage() {
 
       if (categoriesError) {
         console.error('Categories error:', categoriesError)
-        throw categoriesError
+        // Don't throw error, continue with empty categories
       }
 
-      // Load tests from database with category information
+      console.log('Loaded categories:', categoriesData)
+
+      // Load tests from database - remove the non-existent 'category' column
       const { data: testsData, error: testsError } = await supabase
         .from('tests')
-        .select('id, title, status, category')
+        .select('id, title, status')
         .order('title')
 
       if (testsError) {
         console.error('Tests error:', testsError)
-        throw testsError
+        // Don't throw error, continue with empty tests
       }
 
       console.log('Loaded tests:', testsData)
 
-      // Load materials from database - simplified query to avoid RLS issues
-      const { data: materialsData, error: materialsError } = await supabase
-        .from('materials')
-        .select('*')
-        .order('created_at', { ascending: false })
-
-      if (materialsError) {
-        console.error('Materials error:', materialsError)
-        // Don't throw error for materials, continue with empty array
+      // Load materials using the same API endpoint as the user-facing page
+      console.log('Fetching materials from API...')
+      const materialsResponse = await fetch('/api/materials')
+      let materialsData = []
+      
+      if (materialsResponse.ok) {
+        const apiMaterials = await materialsResponse.json()
+        console.log('Loaded materials from API:', apiMaterials)
+        
+        // Transform API materials to match admin format
+        materialsData = apiMaterials.map((item: any) => ({
+          id: item.id,
+          title: item.title,
+          description: item.description || '',
+          tags: item.tags || [],
+          pdf_url: item.pdf_url,
+          category_id: item.category?.id || '',
+          category_name: item.category?.name || 'General',
+          associated_test_id: item.associated_test_id || null,
+          associated_test_title: testsData?.find((t: any) => t.id === item.associated_test_id)?.title || '',
+          status: item.status || 'published',
+          created_at: item.created_at,
+          updated_at: item.created_at
+        }))
+      } else {
+        console.error('Failed to fetch materials from API:', materialsResponse.status, materialsResponse.statusText)
+        // Try to get error details
+        try {
+          const errorText = await materialsResponse.text()
+          console.error('API Error details:', errorText)
+        } catch (e) {
+          console.error('Could not read error response')
+        }
       }
       
-      // Set the actual data from database
+      console.log('Final materials data:', materialsData)
+      
+      // Set the data - use fallbacks for failed queries
       setCategories(categoriesData || [])
       setTests(testsData || [])
-      
-      // Transform materials data to include category and test names
-      const transformedMaterials = materialsData?.map(material => {
-        const category = categoriesData?.find(c => c.id === material.category_id)
-        const test = testsData?.find(t => t.id === material.associated_test_id)
-        return {
-          ...material,
-          category_name: category?.name,
-          associated_test_title: test?.title
-        }
-      }) || []
-      
-      setMaterials(transformedMaterials)
+      setMaterials(materialsData)
       setIsLoading(false)
+      
+      console.log('Data loading completed')
     } catch (error) {
       console.error('Error loading data:', error)
       // Set empty arrays as fallback
@@ -276,14 +294,12 @@ export default function AdminMaterialsPage() {
   }
 
   const handleEdit = (material: Material) => {
-    const associatedTest = tests.find(t => t.id === material.associated_test_id)
     setFormData({
       title: material.title,
       description: material.description,
       tags: material.tags,
       pdf_url: material.pdf_url,
       category_id: material.category_id || '',
-      test_category: associatedTest?.category || '',
       associated_test_id: material.associated_test_id || '',
       status: material.status
     })
@@ -349,7 +365,6 @@ export default function AdminMaterialsPage() {
       tags: [],
       pdf_url: '',
       category_id: '',
-      test_category: '',
       associated_test_id: '',
       status: 'draft'
     })
@@ -534,62 +549,28 @@ export default function AdminMaterialsPage() {
                   </p>
                 </div>
 
-                {/* Test Category and Associated Test */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="testCategory">Test Category (Optional)</Label>
-                    <Select
-                      value={formData.test_category || undefined}
-                      onValueChange={(value) => setFormData(prev => ({ 
-                        ...prev, 
-                        test_category: value === "none" ? "" : value,
-                        associated_test_id: "" // Reset test selection when category changes
-                      }))}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select test category (optional)" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">None</SelectItem>
-                        {Array.from(new Set(tests.map(test => test.category).filter(Boolean))).map(category => (
-                          <SelectItem key={category} value={category}>
-                            {category}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <p className="text-sm text-gray-500 mt-1">
-                      Categories: {Array.from(new Set(tests.map(test => test.category).filter(Boolean))).join(', ') || 'No categories found'}
-                    </p>
-                  </div>
-                  <div>
-                    <Label htmlFor="associatedTest">Associated Test (Optional)</Label>
-                    <Select
-                      value={formData.associated_test_id || undefined}
-                      onValueChange={(value) => setFormData(prev => ({ ...prev, associated_test_id: value === "none" ? "" : value }))}
-                      disabled={!formData.test_category}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder={formData.test_category ? "Select test (optional)" : "Select category first"} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">None</SelectItem>
-                        {tests
-                          .filter(test => formData.test_category && test.category === formData.test_category)
-                          .map(test => (
-                            <SelectItem key={test.id} value={test.id}>
-                              {test.title}
-                            </SelectItem>
-                          ))}
-                      </SelectContent>
-                    </Select>
-                    <p className="text-sm text-gray-500 mt-1">
-                      {formData.test_category 
-                        ? `Tests in ${formData.test_category}: ${tests.filter(t => t.category === formData.test_category).length}`
-                        : 'Select a category first to see available tests'
-                      }
-                    </p>
-                  </div>
+                {/* Associated Test */}
+                <div>
+                  <Label htmlFor="associatedTest">Associated Test (Optional)</Label>
+                  <Select
+                    value={formData.associated_test_id || undefined}
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, associated_test_id: value === "none" ? "" : value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select test (optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">None</SelectItem>
+                      {tests.map(test => (
+                        <SelectItem key={test.id} value={test.id}>
+                          {test.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Available tests: {tests.length}
+                  </p>
                 </div>
 
                 {/* Status */}

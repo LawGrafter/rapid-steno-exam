@@ -19,7 +19,8 @@ import {
   FileText,
   CheckCircle,
   XCircle,
-  Minus
+  Minus,
+  AlertTriangle
 } from 'lucide-react'
 import { getCurrentUser } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
@@ -215,14 +216,6 @@ export default function MyAccountPage() {
     }
   }
 
-  const getStatusBadge = (attempt: TestAttempt) => {
-    if (attempt.status === 'submitted') {
-      return <Badge className="bg-green-100 text-green-800">Completed</Badge>
-    } else {
-      return <Badge variant="secondary">In Progress</Badge>
-    }
-  }
-
   const getScoreDisplay = (attempt: TestAttempt) => {
     if (attempt.status !== 'submitted') return '-'
     
@@ -230,6 +223,41 @@ export default function MyAccountPage() {
     const percentage = totalQuestions > 0 ? Math.round((attempt.total_score / totalQuestions) * 100) : 0
     
     return `${attempt.total_score}/${totalQuestions} (${percentage}%)`
+  }
+
+  const getDetailedStats = (attempt: TestAttempt) => {
+    if (attempt.status !== 'submitted') return null
+    
+    const totalQuestions = attempt.test.questions?.length || attempt.answers.length
+    const correctAnswers = attempt.total_score
+    const wrongAnswers = attempt.answers.filter(a => !a.is_correct && a.chosen_option_id).length
+    const unanswered = attempt.answers.filter(a => !a.chosen_option_id).length
+    const percentage = totalQuestions > 0 ? Math.round((correctAnswers / totalQuestions) * 100) : 0
+    
+    return {
+      totalQuestions,
+      correctAnswers,
+      wrongAnswers,
+      unanswered,
+      percentage
+    }
+  }
+
+  const getPerformanceRemark = (percentage: number) => {
+    if (percentage >= 90) return { text: "Excellent! Outstanding performance!", color: "text-green-600", bg: "bg-green-50", border: "border-green-200" }
+    if (percentage >= 80) return { text: "Great job! Very good performance!", color: "text-blue-600", bg: "bg-blue-50", border: "border-blue-200" }
+    if (percentage >= 70) return { text: "Good work! Above average performance!", color: "text-yellow-600", bg: "bg-yellow-50", border: "border-yellow-200" }
+    if (percentage >= 60) return { text: "Fair performance. Room for improvement!", color: "text-orange-600", bg: "bg-orange-50", border: "border-orange-200" }
+    if (percentage >= 50) return { text: "Below average. More practice needed!", color: "text-red-600", bg: "bg-red-50", border: "border-red-200" }
+    return { text: "Needs significant improvement. Keep practicing!", color: "text-red-700", bg: "bg-red-100", border: "border-red-300" }
+  }
+
+  const getStatusBadge = (attempt: TestAttempt) => {
+    if (attempt.status === 'submitted') {
+      return <Badge className="bg-green-100 text-green-800">Completed</Badge>
+    } else {
+      return <Badge variant="secondary">In Progress</Badge>
+    }
   }
 
   if (!user) return null
@@ -334,48 +362,126 @@ export default function MyAccountPage() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {attempts.map((attempt) => (
-                    <div key={attempt.id} className="p-4 border rounded-lg hover:bg-gray-50">
-                      {/* Mobile-first layout */}
-                      <div className="space-y-3">
-                        {/* Test title and description */}
-                        <div>
-                          <h3 className="font-semibold text-gray-900 text-sm sm:text-base">{attempt.test.title}</h3>
-                          <p className="text-xs sm:text-sm text-gray-600 mt-1">{attempt.test.description || 'General Test'}</p>
-                        </div>
-                        
-                        {/* Date and duration - responsive flex */}
-                        <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs text-gray-500">
-                          <span className="flex items-center gap-1">
-                            <Calendar className="h-3 w-3 flex-shrink-0" />
-                            <span className="whitespace-nowrap">{new Date(attempt.started_at).toLocaleDateString()}</span>
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Clock className="h-3 w-3 flex-shrink-0" />
-                            <span className="whitespace-nowrap">{attempt.test.duration_minutes} min</span>
-                          </span>
-                        </div>
-                        
-                        {/* Score and actions - stacked on mobile, side by side on larger screens */}
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                            <div className="font-semibold text-sm">{getScoreDisplay(attempt)}</div>
-                            {getStatusBadge(attempt)}
+                  {attempts.map((attempt) => {
+                    const stats = getDetailedStats(attempt)
+                    const remark = stats ? getPerformanceRemark(stats.percentage) : null
+                    
+                    return (
+                      <Card key={attempt.id} className="border-2 hover:shadow-md transition-shadow duration-200">
+                        <CardContent className="p-6">
+                          {/* Test Header */}
+                          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-4">
+                            <div className="flex-1">
+                              <h3 className="font-bold text-lg text-gray-900 mb-1">{attempt.test.title}</h3>
+                              <p className="text-sm text-gray-600 mb-2">{attempt.test.description || 'General Test'}</p>
+                              
+                              {/* Date and Duration */}
+                              <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
+                                <span className="flex items-center gap-1">
+                                  <Calendar className="h-4 w-4" />
+                                  {new Date(attempt.started_at).toLocaleDateString()}
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  <Clock className="h-4 w-4" />
+                                  {attempt.test.duration_minutes} min
+                                </span>
+                              </div>
+                            </div>
+                            
+                            {/* Status Badge */}
+                            <div className="self-start">
+                              {getStatusBadge(attempt)}
+                            </div>
                           </div>
-                          
-                          {attempt.status !== 'submitted' && (
-                            <Button
-                              size="sm"
-                              onClick={() => router.push(`/test/${attempt.test_id}`)}
-                              className="self-start sm:self-auto"
-                            >
-                              Continue
-                            </Button>
+
+                          {/* Score and Statistics */}
+                          {attempt.status === 'submitted' && stats ? (
+                            <div className="space-y-4">
+                              {/* Score Overview */}
+                              <div className="bg-gray-50 rounded-lg p-4">
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
+                                  <div>
+                                    <div className="text-2xl font-bold text-blue-600">{stats.percentage}%</div>
+                                    <div className="text-xs text-gray-500">Score</div>
+                                  </div>
+                                  <div>
+                                    <div className="text-2xl font-bold text-green-600">{stats.correctAnswers}</div>
+                                    <div className="text-xs text-gray-500">Correct</div>
+                                  </div>
+                                  <div>
+                                    <div className="text-2xl font-bold text-red-600">{stats.wrongAnswers}</div>
+                                    <div className="text-xs text-gray-500">Wrong</div>
+                                  </div>
+                                  <div>
+                                    <div className="text-2xl font-bold text-gray-600">{stats.correctAnswers}/{stats.totalQuestions}</div>
+                                    <div className="text-xs text-gray-500">Score</div>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Performance Remark */}
+                              {remark && (
+                                <div className={`p-3 rounded-lg border ${remark.bg} ${remark.border}`}>
+                                  <div className="flex items-center gap-2">
+                                    <Trophy className={`h-4 w-4 ${remark.color}`} />
+                                    <span className={`text-sm font-medium ${remark.color}`}>
+                                      {remark.text}
+                                    </span>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Progress Bar */}
+                              <div className="space-y-2">
+                                <div className="flex justify-between text-sm">
+                                  <span className="text-gray-600">Progress</span>
+                                  <span className="font-medium">{stats.correctAnswers}/{stats.totalQuestions}</span>
+                                </div>
+                                <div className="w-full bg-gray-200 rounded-full h-2">
+                                  <div 
+                                    className={`h-2 rounded-full transition-all duration-300 ${
+                                      stats.percentage >= 80 ? 'bg-green-500' :
+                                      stats.percentage >= 60 ? 'bg-yellow-500' : 'bg-red-500'
+                                    }`}
+                                    style={{ width: `${stats.percentage}%` }}
+                                  ></div>
+                                </div>
+                              </div>
+
+                              {/* Action Buttons */}
+                              <div className="flex gap-2 pt-2">
+                                {stats.wrongAnswers > 0 && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => router.push(`/mistakes/${attempt.id}`)}
+                                    className="flex items-center gap-1 text-red-600 border-red-200 hover:bg-red-50"
+                                  >
+                                    <AlertTriangle className="h-3 w-3" />
+                                    View {stats.wrongAnswers} Mistake{stats.wrongAnswers !== 1 ? 's' : ''}
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          ) : (
+                            /* In Progress Test */
+                            <div className="flex items-center justify-between pt-2">
+                              <div className="text-sm text-gray-600">
+                                Test in progress...
+                              </div>
+                              <Button
+                                size="sm"
+                                onClick={() => router.push(`/test/${attempt.test_id}`)}
+                                className="bg-blue-600 hover:bg-blue-700"
+                              >
+                                Continue Test
+                              </Button>
+                            </div>
                           )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                        </CardContent>
+                      </Card>
+                    )
+                  })}
                 </div>
               )}
             </CardContent>

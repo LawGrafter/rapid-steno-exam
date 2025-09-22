@@ -591,37 +591,46 @@ export default function MaterialsPage() {
 
       {/* PDF Warning Dialog */}
       <AlertDialog open={showWarning} onOpenChange={setShowWarning}>
-        <AlertDialogContent className="max-w-md">
+        <AlertDialogContent className="max-w-md border-4 border-red-500 shadow-2xl bg-gradient-to-br from-red-50 via-orange-50 to-yellow-50">
           <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2 text-red-600">
-              <AlertTriangle className="h-5 w-5" />
-              Important Notice
+            <AlertDialogTitle className="flex items-center gap-3 text-2xl font-bold">
+              <div className="p-2 bg-gradient-to-r from-red-500 to-orange-500 rounded-full">
+                <AlertTriangle className="h-6 w-6 text-white" />
+              </div>
+              <span className="bg-gradient-to-r from-red-600 to-orange-600 bg-clip-text text-transparent">
+                ⚠️ Important Notice
+              </span>
             </AlertDialogTitle>
-            <AlertDialogDescription className="text-sm space-y-3">
-              <p className="font-semibold text-gray-800">
-                Please Do Not Share This PDF With Anyone
-              </p>
-              <p>
-                Each PDF has a <span className="font-semibold text-blue-600">Unique ID</span> and gets tracked. 
-                Unauthorized sharing will result in your account being blocked permanently.
-              </p>
-              <p className="text-xs text-gray-600">
-                By clicking "Yes, I Agree", you acknowledge that you understand and accept these terms.
-              </p>
+            <AlertDialogDescription className="text-base space-y-4 mt-4">
+              <div className="p-4 bg-gradient-to-r from-red-100 to-orange-100 border-l-4 border-red-500 rounded-r-lg">
+                <p className="font-bold text-lg text-red-800 mb-2">
+                  🚫 Please Do Not Share This PDF With Anyone Outside
+                </p>
+                <p className="text-red-700">
+                  Each PDF has a <span className="font-bold text-blue-600 bg-blue-100 px-2 py-1 rounded">Unique ID</span> and gets tracked. 
+                  Unauthorized sharing will result in your account being blocked permanently.
+                </p>
+              </div>
+              
+              <div className="p-3 bg-gradient-to-r from-yellow-100 to-orange-100 border border-yellow-400 rounded-lg">
+                <p className="text-sm text-gray-800 font-medium">
+                  By clicking <span className="font-bold text-green-600">"Yes, I Agree"</span>, you acknowledge that you understand and accept these terms.
+                </p>
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="gap-2">
+          <AlertDialogFooter className="gap-3 mt-6">
             <AlertDialogCancel 
               onClick={handleWarningDisagree}
-              className="bg-gray-100 hover:bg-gray-200 text-gray-800"
+              className="bg-gradient-to-r from-gray-400 to-gray-500 hover:from-gray-500 hover:to-gray-600 text-white font-bold py-3 px-6 rounded-lg shadow-lg transform hover:scale-105 transition-all duration-200"
             >
-              No, I Don't Agree
+              ❌ No, I Don't Agree
             </AlertDialogCancel>
             <AlertDialogAction 
               onClick={handleWarningAgree}
-              className="bg-green-600 hover:bg-green-700 text-white"
+              className="bg-gradient-to-r from-[#002E2C] to-teal-600 hover:from-[#001A18] hover:to-teal-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg transform hover:scale-105 transition-all duration-200"
             >
-              Yes, I Agree
+              ✅ Yes, I Agree
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
