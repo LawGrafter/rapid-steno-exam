@@ -104,7 +104,7 @@ export default function MistakesPage() {
 
       // Get options for wrong answers
       if (wrongAnswers && wrongAnswers.length > 0) {
-        const questionIds = wrongAnswers.map(a => a.question_id)
+        const questionIds = wrongAnswers.map((a: any) => a.question_id)
         const { data: options, error: optionsError } = await supabase
           .from('options')
           .select('*')
@@ -120,9 +120,9 @@ export default function MistakesPage() {
         console.log('Found options:', options)
 
         // Combine data
-        const mistakesWithOptions = wrongAnswers.map(answer => ({
+        const mistakesWithOptions = wrongAnswers.map((answer: any) => ({
           ...answer,
-          options: options.filter(opt => opt.question_id === answer.question_id)
+          options: options?.filter((opt: any) => opt.question_id === answer.question_id) || []
         }))
 
         setMistakes(mistakesWithOptions)
@@ -268,7 +268,7 @@ export default function MistakesPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-6">
-                {mistakes.map((mistake, index) => (
+                {mistakes.map((mistake: any, index: number) => (
                   <div key={index} className="p-6 rounded-lg border-2 bg-red-50 border-red-200">
                     {/* Question Header */}
                     <div className="flex justify-between items-start mb-4">
@@ -339,7 +339,7 @@ export default function MistakesPage() {
                           Correct Answer
                         </h5>
                         <p className="text-green-700">
-                          <strong>{mistake.options?.find(opt => opt.is_correct)?.label || 'Not available'}</strong>
+                          <strong>{mistake.options?.find((opt: any) => opt.is_correct)?.label || 'Not available'}</strong>
                         </p>
                       </div>
                       
