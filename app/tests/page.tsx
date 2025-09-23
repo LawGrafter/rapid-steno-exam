@@ -11,7 +11,7 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { supabase } from '@/lib/supabase'
 import { getCurrentUser, logout } from '@/lib/auth'
 import { AccessControl, UserAccess } from '@/lib/access-control'
-import { Search, ArrowLeft, Lock, User, LogOut, Menu, X, Clock, Calendar, FileText, Building, Cpu, Shirt, AlertTriangle } from 'lucide-react'
+import { Search, ArrowLeft, Lock, User, LogOut, Menu, X, Clock, Calendar, FileText, Building, Cpu, Shirt, AlertTriangle, Flame, Snowflake } from 'lucide-react'
 import { UpgradeDialog } from '@/components/ui/upgrade-dialog'
 import Head from 'next/head'
 
@@ -302,6 +302,28 @@ export default function TestsPage() {
         return <Search className="h-6 w-6" />
       default:
         return <FileText className="h-6 w-6" />
+    }
+  }
+
+  // Generate random user statistics for tests
+  const generateUserStats = (testId: string) => {
+    // Use test ID as seed for consistent random numbers
+    const seed = testId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
+    const random = (seed * 9301 + 49297) % 233280 / 233280
+    
+    // Generate user count between 3-15
+    const userCount = Math.floor(random * 13) + 3
+    
+    // Determine if it's popular (fire) or less popular (ice) based on count
+    const isPopular = userCount >= 9
+    
+    return {
+      userCount,
+      isPopular,
+      icon: isPopular ? Flame : Snowflake,
+      color: isPopular ? 'text-orange-500' : 'text-blue-400',
+      bgColor: isPopular ? 'bg-orange-50' : 'bg-blue-50',
+      borderColor: isPopular ? 'border-orange-200' : 'border-blue-200'
     }
   }
 
@@ -710,11 +732,23 @@ export default function TestsPage() {
                     <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
                       {topicTests.map((test: Test) => {
                         const status = getTestStatus(test)
+                        const userStats = generateUserStats(test.id)
+                        const IconComponent = userStats.icon
                         
                         return (
-                          <div key={test.id} className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 border border-white/20">
+                          <div key={test.id} className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 border border-white/20 hover:border-[#002E2C]/30 hover:border-2 relative">
+                            {/* User Statistics - Floating on Border */}
+                            <div className="absolute -top-3 right-4">
+                              <div className={`inline-flex items-center px-3 py-1.5 rounded-full ${userStats.bgColor} ${userStats.borderColor} border shadow-md`}>
+                                <IconComponent className={`h-3.5 w-3.5 mr-1.5 ${userStats.color}`} />
+                                <span className={`text-xs font-semibold ${userStats.color}`}>
+                                  {userStats.userCount} Users Given
+                                </span>
+                              </div>
+                            </div>
+
                             {/* Header Section */}
-                            <div className="mb-8">
+                            <div className="mb-8 pt-4 pr-16">
                               <h3 className="font-bold text-2xl text-gray-900 leading-tight mb-4">{test.title}</h3>
                               <div className="flex flex-wrap gap-2 mb-3">
                                 <div className="inline-flex items-center px-3 py-1 rounded-full bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200">
