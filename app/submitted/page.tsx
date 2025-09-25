@@ -219,7 +219,7 @@ export default function SubmittedPage() {
               Question ${index + 1} 
               <span style="float: right; ${answer.is_correct ? 'color: #22c55e;' : answer.chosen_option_id ? 'color: #ef4444;' : 'color: #6b7280;'}">${answer.is_correct ? '✓ Correct' : answer.chosen_option_id ? '✗ Incorrect' : '— Unanswered'}</span>
             </div>
-            <div style="margin-bottom: 8px; color: #374151;">${answer.question.text}</div>
+            <div style="margin-bottom: 8px; color: #374151; white-space: pre-wrap;">${answer.question.text}</div>
             <div style="font-size: 11px; color: #6b7280;">
               <strong>Your Answer:</strong> ${answer.question.options.find(opt => opt.id === answer.chosen_option_id)?.label || 'Not answered'}<br>
               <strong>Correct Answer:</strong> ${answer.question.options.find(opt => opt.is_correct)?.label || 'N/A'}<br>
@@ -474,7 +474,7 @@ export default function SubmittedPage() {
                   </div>
 
                   {/* Question Text */}
-                  <p className="text-gray-700 mb-4 leading-relaxed">
+                  <p className="text-gray-700 mb-4 leading-relaxed whitespace-pre-wrap">
                     {answer.question.text}
                   </p>
 

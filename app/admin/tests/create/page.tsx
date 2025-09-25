@@ -201,6 +201,58 @@ export default function CreateTestPage() {
     return result
   }
 
+  const parseCSVRows = (text: string): string[][] => {
+    const rows: string[][] = []
+    let currentRow: string[] = []
+    let currentField = ''
+    let inQuotes = false
+    let i = 0
+    
+    while (i < text.length) {
+      const char = text[i]
+      
+      if (char === '"') {
+        if (inQuotes && text[i + 1] === '"') {
+          // Handle escaped quotes
+          currentField += '"'
+          i += 2
+          continue
+        } else {
+          // Toggle quote state
+          inQuotes = !inQuotes
+        }
+      } else if (char === ',' && !inQuotes) {
+        // End of field
+        currentRow.push(currentField.trim())
+        currentField = ''
+      } else if ((char === '\n' || char === '\r') && !inQuotes) {
+        // End of row (handle both \n and \r\n)
+        if (char === '\r' && text[i + 1] === '\n') {
+          i++ // Skip the \n in \r\n
+        }
+        currentRow.push(currentField.trim())
+        if (currentRow.some(field => field.length > 0)) {
+          rows.push(currentRow)
+        }
+        currentRow = []
+        currentField = ''
+      } else {
+        currentField += char
+      }
+      i++
+    }
+    
+    // Add the last field and row if there's content
+    if (currentField || currentRow.length > 0) {
+      currentRow.push(currentField.trim())
+      if (currentRow.some(field => field.length > 0)) {
+        rows.push(currentRow)
+      }
+    }
+    
+    return rows
+  }
+
   const handleCSVUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
@@ -209,14 +261,14 @@ export default function CreateTestPage() {
     
     try {
       const text = await file.text()
-      const lines = text.split('\n').filter(line => line.trim())
+      const rows = parseCSVRows(text)
       
-      if (lines.length < 2) {
+      if (rows.length < 2) {
         alert('CSV file must contain at least a header row and one data row.')
         return
       }
       
-      const headers = parseCSVLine(lines[0])
+      const headers = rows[0]
       
       // Expected format: Question,Option A,Option B,Option C,Option D,Correct Answer,Points
       if (headers.length < 7) {
@@ -226,8 +278,8 @@ export default function CreateTestPage() {
 
       const newQuestions: Question[] = []
       
-      for (let i = 1; i < lines.length; i++) {
-        const row = parseCSVLine(lines[i])
+      for (let i = 1; i < rows.length; i++) {
+        const row = rows[i]
         if (row.length < 7 || !row[0].trim()) continue
 
         const questionText = row[0].trim()
@@ -268,6 +320,7 @@ export default function CreateTestPage() {
       'Question,Option A,Option B,Option C,Option D,Correct Answer,Points',
       '"What is the capital of India?","New Delhi","Mumbai","Kolkata","Chennai","A","1"',
       '"In Excel, which function returns the average of numbers ignoring text?","AVERAGE","AVERAGEIF","COUNT","SUM","B","1"',
+      '"Select the most appropriate option to fill in the blank.\nDo you think you ______ in this new venture you are launching today?","will succeed","would succeed","should succeed","must succeed","A","1"',
       '"Which planet is known as the Red Planet?","Venus","Mars","Jupiter","Saturn","B","1"'
     ].join('\n')
 

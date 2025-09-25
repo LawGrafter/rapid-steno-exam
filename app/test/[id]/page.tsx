@@ -480,7 +480,7 @@ export default function TestPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="text-gray-900 text-base leading-relaxed">
+                <div className="text-gray-900 text-base leading-relaxed whitespace-pre-wrap">
                   {currentQuestion.text}
                 </div>
 

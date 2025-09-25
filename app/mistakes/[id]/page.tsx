@@ -284,7 +284,7 @@ export default function MistakesPage() {
                     <div className="mb-6 p-4 bg-white rounded-lg border">
                       <div className="flex items-start gap-2">
                         <BookOpen className="h-5 w-5 text-gray-500 mt-0.5 flex-shrink-0" />
-                        <p className="text-gray-800 leading-relaxed font-medium">
+                        <p className="text-gray-800 leading-relaxed font-medium whitespace-pre-wrap">
                           {mistake.questions?.text || 'Question text not available'}
                         </p>
                       </div>
