@@ -121,7 +121,12 @@ export async function deleteUser(userId: string): Promise<{ success: boolean; er
 
 export async function createSession(user: User) {
   if (typeof window !== 'undefined') {
-    localStorage.setItem('currentUser', JSON.stringify(user))
+    // Add expiration time (24 hours from now)
+    const sessionData = {
+      user,
+      expiry: Date.now() + (24 * 60 * 60 * 1000) // 24 hours in milliseconds
+    }
+    localStorage.setItem('currentUser', JSON.stringify(sessionData))
   }
 }
 
@@ -129,7 +134,19 @@ export function getCurrentUser(): User | null {
   if (typeof window !== 'undefined') {
     const stored = localStorage.getItem('currentUser')
     if (stored) {
-      return JSON.parse(stored)
+      const sessionData = JSON.parse(stored)
+      
+      // Check if session is expired
+      if (sessionData.expiry && sessionData.expiry > Date.now()) {
+        return sessionData.user
+      } else if (sessionData.expiry) {
+        // Clear expired session
+        localStorage.removeItem('currentUser')
+        return null
+      } else {
+        // Handle legacy format (no expiry)
+        return sessionData
+      }
     }
   }
   return null
@@ -138,6 +155,7 @@ export function getCurrentUser(): User | null {
 export function logout() {
   if (typeof window !== 'undefined') {
     localStorage.removeItem('currentUser')
+    // Redirect to login page after clearing session
     window.location.href = '/login'
   }
 }

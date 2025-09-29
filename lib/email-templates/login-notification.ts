@@ -170,7 +170,7 @@ export const generateLoginNotificationTemplate = (
           </div>
           <div class="footer">
             <p>© ${new Date().getFullYear()} Rapid Steno. All rights reserved.</p>
-            <p>Mail to info@rapidsteno.com</p>
+            <p>Mail from info@rapidsteno.com</p>
           </div>
         </div>
       </div>

@@ -25,8 +25,71 @@
   }
 }
 
+/* Auto-scrolling animations for exam names */
+@keyframes scroll-right {
+  0% {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(100vw);
+    opacity: 0;
+  }
+}
+
+@keyframes scroll-left {
+  0% {
+    transform: translateX(100vw);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+}
+
 .animate-blob {
   animation: blob 7s infinite;
+}
+
+.animate-scroll-right {
+  animation: scroll-right 15s linear infinite;
+}
+
+.animate-scroll-left {
+  animation: scroll-left 15s linear infinite;
+}
+
+.animation-duration-10 {
+  animation-duration: 10s;
+}
+
+.animation-duration-12 {
+  animation-duration: 12s;
+}
+
+.animation-duration-15 {
+  animation-duration: 15s;
+}
+
+.animation-duration-18 {
+  animation-duration: 18s;
+}
+
+.animation-duration-20 {
+  animation-duration: 20s;
 }
 
 .animation-delay-2000 {

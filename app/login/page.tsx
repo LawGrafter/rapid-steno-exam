@@ -1,19 +1,85 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { supabase } from '@/lib/supabase'
-import { Eye, EyeOff, User, Lock, TestTube } from 'lucide-react'
+import { Eye, EyeOff, User, Lock, TestTube, HelpCircle, MessageCircle, Mail } from 'lucide-react'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
-import { validateStudentLogin, createSession } from '@/lib/auth'
-import { ExternalLink, Crown, Mail, Sparkles, Check, ShieldCheck } from 'lucide-react'
+import { validateStudentLogin, createSession, getCurrentUser } from '@/lib/auth'
+import { ExternalLink, Crown, Sparkles, Check, ShieldCheck } from 'lucide-react'
 import { OtpVerificationModal } from '@/components/ui/otp-verification-modal'
 
+// Animation styles for scrolling exam names
+const floatingStyles = `
+  @keyframes scrollRight {
+    0% { transform: translateX(-150%); }
+    100% { transform: translateX(150%); }
+  }
+  
+  @keyframes scrollLeft {
+    0% { transform: translateX(150%); }
+    100% { transform: translateX(-150%); }
+  }
+  
+  .animate-scroll-right {
+    animation: scrollRight 15s linear infinite;
+  }
+  
+  .animate-scroll-left {
+    animation: scrollLeft 15s linear infinite;
+  }
+  
+  .animation-duration-8 {
+    animation-duration: 8s;
+  }
+  
+  .animation-duration-10 {
+    animation-duration: 10s;
+  }
+  
+  .animation-duration-12 {
+    animation-duration: 12s;
+  }
+  
+  .animation-duration-15 {
+    animation-duration: 15s;
+  }
+  
+  .animation-duration-18 {
+    animation-duration: 18s;
+  }
+  
+  .animation-duration-20 {
+    animation-duration: 20s;
+  }
+  
+  .animation-duration-22 {
+    animation-duration: 22s;
+  }
+  
+  .animation-duration-25 {
+    animation-duration: 25s;
+  }
+`
+
 export default function LoginPage() {
+  // Add style tag for animations
+  useEffect(() => {
+    // Add the animation styles to the document
+    const styleElement = document.createElement('style')
+    styleElement.innerHTML = floatingStyles
+    document.head.appendChild(styleElement)
+    
+    return () => {
+      // Clean up on unmount
+      document.head.removeChild(styleElement)
+    }
+  }, [])
+
   const [email, setEmail] = useState('')
   const [fullName, setFullName] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -26,6 +92,14 @@ export default function LoginPage() {
   const [showOtpModal, setShowOtpModal] = useState(false)
   const [verifiedUser, setVerifiedUser] = useState<any>(null)
   const router = useRouter()
+  
+  // Check if user is already logged in and redirect to tests page
+  useEffect(() => {
+    const user = getCurrentUser()
+    if (user) {
+      router.push('/tests')
+    }
+  }, [])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -113,6 +187,20 @@ export default function LoginPage() {
     }
   }
 
+  // Function to request fullscreen mode
+  const requestFullscreen = () => {
+    const element = document.documentElement;
+    if (element.requestFullscreen) {
+      element.requestFullscreen();
+    } else if ((element as any).mozRequestFullScreen) { // Firefox
+      (element as any).mozRequestFullScreen();
+    } else if ((element as any).webkitRequestFullscreen) { // Chrome, Safari and Opera
+      (element as any).webkitRequestFullscreen();
+    } else if ((element as any).msRequestFullscreen) { // IE/Edge
+      (element as any).msRequestFullscreen();
+    }
+  };
+
   // Handle OTP verification
   const handleVerifyOtp = async (otp: string) => {
     try {
@@ -132,6 +220,9 @@ export default function LoginPage() {
           createSession(verifiedUser)
           setShowOtpModal(false)
           setShowSuccessPopup(true)
+          
+          // Request fullscreen mode
+          requestFullscreen();
           
           // Redirect after showing success animation
           setTimeout(() => {
@@ -174,30 +265,19 @@ export default function LoginPage() {
 
   return (
     <>
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-emerald-50 relative overflow-hidden flex items-center justify-center p-4 font-lexend">
-        {/* Animated background elements */}
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute -top-40 -right-40 w-80 h-80 bg-cyan-400 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob"></div>
-          <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-emerald-400 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob animation-delay-2000"></div>
-          <div className="absolute top-40 left-40 w-80 h-80 bg-blue-400 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob animation-delay-4000"></div>
-        </div>
-
-        <Card className="w-full max-w-md bg-white/95 backdrop-blur-lg border-2 border-[#002E2C]/10 shadow-2xl">
-          <CardHeader className="space-y-4 text-center relative">
-            <div className="mx-auto w-16 h-16 bg-[#002E2C] rounded-full flex items-center justify-center mb-4 shadow-lg">
-              <Sparkles className="h-8 w-8 text-white" />
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 relative overflow-hidden flex items-center justify-center p-4 font-lexend">
+        {/* Main card container */}
+        <div className="w-full max-w-5xl bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row">
+          {/* Left side - Login form */}
+          <div className="order-2 md:order-1 w-full md:w-1/2 p-8 md:p-12">
+            <div className="mb-8">
+              <h2 className="text-4xl font-extrabold text-[#01342F] mb-3 tracking-tight">Rapid Steno</h2>
+              <p className="text-gray-600">Enter your credentials to access premium tests</p>
             </div>
-            <CardTitle className="text-3xl font-bold text-[#002E2C]">
-              Rapid Steno
-            </CardTitle>
-            <CardDescription className="text-gray-600 text-base">
-              Enter your credentials to access premium tests
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
+            
             <form onSubmit={handleLogin} className="space-y-6">
               <div className="space-y-2">
-                <label htmlFor="email" className="text-sm font-medium text-[#002E2C] flex items-center gap-2">
+                <label htmlFor="email" className="text-sm font-medium text-gray-700 flex items-center gap-2">
                   <Mail className="h-4 w-4" />
                   Registered Email Address
                 </label>
@@ -209,17 +289,18 @@ export default function LoginPage() {
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="Enter your registered email address"
                     required
-                    className="w-full bg-white border-2 border-gray-200 text-[#002E2C] placeholder:text-gray-500 focus:border-[#002E2C] focus:ring-[#002E2C]/20 pl-10 transition-all duration-200"
+                    className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-[#078F65] focus:border-[#078F65]"
                   />
-                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
                 </div>
               </div>
               
               <div className="space-y-2">
-                <label htmlFor="fullName" className="text-sm font-medium text-[#002E2C] flex items-center gap-2">
-                  <User className="h-4 w-4" />
-                  Your Full Name
-                </label>
+                <div className="flex justify-between items-center">
+                  <label htmlFor="fullName" className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                    <User className="h-4 w-4" />
+                    Your Full Name
+                  </label>
+                </div>
                 <div className="relative">
                   <Input
                     id="fullName"
@@ -228,60 +309,140 @@ export default function LoginPage() {
                     onChange={(e) => setFullName(e.target.value)}
                     placeholder="Enter your full name for result"
                     required
-                    className="w-full bg-white border-2 border-gray-200 text-[#002E2C] placeholder:text-gray-500 focus:border-[#002E2C] focus:ring-[#002E2C]/20 pl-10 transition-all duration-200"
+                    className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-[#078F65] focus:border-[#078F65]"
                   />
-                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
                 </div>
               </div>
 
               <Button
                 type="submit"
                 disabled={isLoading || !email || !fullName}
-                className="w-full bg-[#002E2C] hover:bg-[#002E2C]/90 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none shadow-lg"
+                className="w-full bg-gradient-to-r from-[#078F65] to-[#01342F] hover:from-[#01342F] hover:to-[#078F65] text-white font-medium py-2.5 px-4 rounded-lg transition-all duration-200"
               >
                 {isLoading ? (
                   <>
                     <LoadingSpinner className="mr-2" />
-                    Authenticating...
+                    Sending OTP...
                   </>
                 ) : (
-                  <>
-                    <Sparkles className="mr-2 h-4 w-4" />
-                    Access Exam Dashboard
-                  </>
+                  "Access Exam Dashboard"
                 )}
               </Button>
-
+              
               <div className="text-center text-sm text-gray-600 space-y-3 pt-4 border-t border-gray-200">
-                <p className="flex items-center justify-center gap-2">
-                  <Crown className="h-4 w-4 text-[#002E2C]" />
-                  Premium Access Required
+                <p className="flex items-center justify-center gap-2 font-medium">
+                  <HelpCircle className="h-4 w-4 text-gray-700" />
+                  Need Help?
                 </p>
-                <p className="text-xs text-gray-500">Contact administrator for enrollment</p>
-                
-                {/* Demo button hidden as requested */}
-                {/* <div className="pt-2">
-                  <Button
-                    onClick={handleDemoAccess}
-                    variant="outline"
-                    className="w-full border-2 border-blue-500 text-blue-600 hover:bg-blue-50 hover:text-blue-700 transition-all duration-200"
+                <div className="flex flex-col sm:flex-row justify-center gap-4 mt-2">
+                  <a 
+                    href="https://api.whatsapp.com/send/?phone=917307133551&text&type=phone_number&app_absent=0" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-md shadow-sm transition-all mb-2 sm:mb-0"
                   >
-                    <TestTube className="mr-2 h-4 w-4" />
-                    Test Software (Demo)
-                  </Button>
-                  <p className="text-xs text-gray-400 mt-2">Try our software with a sample test</p>
-                </div> */}
+                    <MessageCircle className="h-4 w-4 mr-2" />
+                    Connect Via WhatsApp
+                  </a>
+                  <a 
+                    href="mailto:info@rapidsteno.com" 
+                    className="flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md shadow-sm transition-all"
+                  >
+                    <Mail className="h-4 w-4 mr-2" />
+                    Connect Via Mail
+                  </a>
+                </div>
               </div>
             </form>
-          </CardContent>
-        </Card>
+          </div>
+          
+          {/* Right side - Full section with auto-scrolling exam names */}
+          <div className="order-1 md:order-2 w-full md:w-1/2 bg-gradient-to-br from-[#078F65] to-[#01342F] p-8 flex items-center justify-center relative overflow-hidden max-h-[250px] md:max-h-none">
+            
+            {/* Rapid Steno Batch Heading - hidden on mobile */}
+            <div className="absolute top-4 left-0 right-0 text-center z-20 hidden md:block">
+              <h1 className="text-white text-2xl md:text-3xl font-bold">Rapid Steno Batch</h1>
+            </div>
+            
+            {/* Decorative elements */}
+            <div className="absolute top-0 right-0 w-40 h-40 bg-white rounded-full filter blur-xl opacity-10"></div>
+            <div className="absolute bottom-0 left-0 w-40 h-40 bg-white rounded-full filter blur-xl opacity-10"></div>
+            
+            {/* Auto-scrolling exam names container */}
+            <div className="relative z-10 w-full max-w-md h-[180px] md:h-[400px] md:max-w-lg">
+              <div className="w-full h-full relative">
+                {/* Mobile exam names - with fixed positions */}
+                <div className="absolute top-[10%] left-0 right-0 bg-white p-3 rounded-lg shadow-lg animate-scroll-left animation-duration-8 mx-auto w-max md:hidden">
+                  <span className="text-[#01342F] font-medium text-sm">Supreme Court of India</span>
+                </div>
+                
+                <div className="absolute top-[25%] bg-white p-3 rounded-lg shadow-lg animate-scroll-right animation-duration-12 md:hidden">
+                  <span className="text-[#01342F] font-medium text-sm">Patna High Court</span>
+                </div>
+                
+                <div className="absolute top-[40%] bg-white p-3 rounded-lg shadow-lg animate-scroll-right animation-duration-18 md:hidden">
+                  <span className="text-[#01342F] font-medium text-sm">Special SSC Stenographer</span>
+                </div>
+                
+                <div className="absolute top-[55%] bg-white p-3 rounded-lg shadow-lg animate-scroll-right animation-duration-10 md:hidden">
+                  <span className="text-[#01342F] font-medium text-sm">Delhi High Court</span>
+                </div>
+                
+                <div className="absolute top-[70%] bg-white p-3 rounded-lg shadow-lg animate-scroll-left animation-duration-15 md:hidden">
+                  <span className="text-[#01342F] font-medium text-sm">Rajasthan High Court</span>
+                </div>
+                
+                {/* Desktop exam names - with fixed positions */}
+                <div className="absolute top-[5%] left-0 right-0 bg-white p-3 rounded-lg shadow-lg animate-scroll-left animation-duration-8 mx-auto w-max hidden md:block">
+                  <span className="text-[#01342F] font-medium text-sm">Supreme Court of India</span>
+                </div>
+                
+                <div className="absolute top-[15%] bg-white p-3 rounded-lg shadow-lg animate-scroll-right animation-duration-22 hidden md:block">
+                  <span className="text-[#01342F] font-medium text-sm">Patna High Court</span>
+                </div>
+                
+                <div className="absolute top-[25%] bg-white p-3 rounded-lg shadow-lg animate-scroll-left animation-duration-12 hidden md:block">
+                  <span className="text-[#01342F] font-medium text-sm">Allahabad High Court</span>
+                </div>
+                
+                <div className="absolute top-[35%] bg-white p-3 rounded-lg shadow-lg animate-scroll-right animation-duration-18 hidden md:block">
+                  <span className="text-[#01342F] font-medium text-sm">Special SSC Stenographer</span>
+                </div>
+                
+                <div className="absolute top-[45%] bg-white p-3 rounded-lg shadow-lg animate-scroll-left animation-duration-25 hidden md:block">
+                  <span className="text-[#01342F] font-medium text-sm">AIIMS Stenographer</span>
+                </div>
+                
+                <div className="absolute top-[55%] bg-white p-3 rounded-lg shadow-lg animate-scroll-right animation-duration-10 hidden md:block">
+                  <span className="text-[#01342F] font-medium text-sm">Delhi High Court</span>
+                </div>
+                
+                <div className="absolute top-[65%] bg-white p-3 rounded-lg shadow-lg animate-scroll-left animation-duration-15 hidden md:block">
+                  <span className="text-[#01342F] font-medium text-sm">Rajasthan High Court</span>
+                </div>
+                
+                <div className="absolute top-[75%] bg-white p-3 rounded-lg shadow-lg animate-scroll-right animation-duration-20 hidden md:block">
+                  <span className="text-[#01342F] font-medium text-sm">Punjab & Haryana High Court</span>
+                </div>
+                
+                <div className="absolute top-[85%] bg-white p-3 rounded-lg shadow-lg animate-scroll-left animation-duration-12 hidden md:block">
+                  <span className="text-[#01342F] font-medium text-sm">Telangana High Court</span>
+                </div>
+                
+                <div className="absolute top-[95%] bg-white p-3 rounded-lg shadow-lg animate-scroll-right animation-duration-22 hidden md:block">
+                  <span className="text-[#01342F] font-medium text-sm">Jharkhand High Court</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Subscription Dialog */}
       <AlertDialog open={showSubscriptionDialog} onOpenChange={setShowSubscriptionDialog}>
         <AlertDialogContent className="max-w-md">
           <AlertDialogHeader className="text-center">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-r from-yellow-400 to-yellow-600">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-r from-[#078F65] to-[#01342F]">
               <Crown className="h-6 w-6 text-white" />
             </div>
             <AlertDialogTitle className="text-xl font-bold text-gray-900">
@@ -295,7 +456,7 @@ export default function LoginPage() {
             <AlertDialogAction asChild>
               <Button 
                 onClick={() => window.open('https://rapidsteno.com/how-to-pay', '_blank')}
-                className="w-full bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-white"
+                className="w-full bg-gradient-to-r from-[#078F65] to-[#01342F] hover:from-[#01342F] hover:to-[#078F65] text-white"
               >
                 <ExternalLink className="h-4 w-4 mr-2" />
                 Subscribe to Gold Pass
@@ -320,8 +481,8 @@ export default function LoginPage() {
             <div className="p-8 text-center">
               <div className="mx-auto mb-6 relative">
                 {/* Animated Circle */}
-                <div className="w-20 h-20 mx-auto bg-gradient-to-r from-green-400 to-emerald-500 rounded-full flex items-center justify-center relative overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-r from-green-400 to-emerald-500 rounded-full animate-ping opacity-75"></div>
+                <div className="w-20 h-20 mx-auto bg-gradient-to-r from-[#078F65] to-[#01342F] rounded-full flex items-center justify-center relative overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-r from-[#078F65] to-[#01342F] rounded-full animate-ping opacity-75"></div>
                   <div className="relative z-10">
                     <Check className="h-10 w-10 text-white animate-in zoom-in-50 duration-500 delay-300" />
                   </div>
@@ -345,7 +506,7 @@ export default function LoginPage() {
               
               {/* Progress Bar */}
               <div className="mt-6 w-full bg-gray-200 rounded-full h-1 overflow-hidden">
-                <div className="h-full bg-gradient-to-r from-green-400 to-emerald-500 rounded-full animate-pulse transition-all duration-2000 ease-out w-full"></div>
+                <div className="h-full bg-gradient-to-r from-[#078F65] to-[#01342F] rounded-full animate-pulse transition-all duration-2000 ease-out w-full"></div>
               </div>
             </div>
           </div>

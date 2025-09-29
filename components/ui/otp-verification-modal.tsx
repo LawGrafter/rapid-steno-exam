@@ -116,14 +116,21 @@ export function OtpVerificationModal({
             disabled={isVerifying}
           />
           
-          {error && (
+          {isVerifying && (
+            <div className="flex items-center text-blue-500 text-sm font-medium">
+              <LoadingSpinner className="h-4 w-4 mr-2" />
+              Verifying OTP, Please Wait...
+            </div>
+          )}
+          
+          {error && !isVerifying && (
             <div className="flex items-center text-red-500 text-sm font-medium">
               <AlertCircle className="h-4 w-4 mr-2" />
               {error}
             </div>
           )}
           
-          {success && (
+          {success && !isVerifying && (
             <div className="flex items-center text-green-500 text-sm font-medium">
               <CheckCircle2 className="h-4 w-4 mr-2" />
               {success}
