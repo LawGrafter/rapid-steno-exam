@@ -18,7 +18,6 @@ import {
   X
 } from 'lucide-react'
 import { getCurrentUser } from '@/lib/auth'
-import { useUser } from '@/lib/hooks'
 import { supabase } from '@/lib/supabase'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import * as RechartsPrimitive from 'recharts'
