@@ -304,41 +304,15 @@ export default function MyAccountPage() {
                   <FileText className="h-4 w-4 mr-2" />
                   Browse Tests
                 </Button>
+                <Button onClick={() => router.push('/account/analytics')} className="bg-indigo-600 hover:bg-indigo-700">
+                  <BarChart3 className="h-4 w-4 mr-2" />
+                  Analytics
+                </Button>
               </div>
             </CardContent>
           </Card>
 
-          {/* Statistics Overview */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <Card>
-              <CardContent className="p-4 text-center">
-                <FileText className="h-6 w-6 text-blue-500 mx-auto mb-1" />
-                <div className="text-xl font-bold text-blue-600">{stats?.totalTests || 0}</div>
-                <p className="text-xs text-gray-600">Total Tests</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4 text-center">
-                <CheckCircle className="h-6 w-6 text-green-500 mx-auto mb-1" />
-                <div className="text-xl font-bold text-green-600">{stats?.completedTests || 0}</div>
-                <p className="text-xs text-gray-600">Completed</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4 text-center">
-                <Trophy className="h-6 w-6 text-yellow-500 mx-auto mb-1" />
-                <div className="text-xl font-bold text-yellow-600">{stats?.averageScore || 0}%</div>
-                <p className="text-xs text-gray-600">Average Score</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4 text-center">
-                <Award className="h-6 w-6 text-purple-500 mx-auto mb-1" />
-                <div className="text-xl font-bold text-purple-600">{stats?.bestScore || 0}%</div>
-                <p className="text-xs text-gray-600">Best Score</p>
-              </CardContent>
-            </Card>
-          </div>
+
 
           {/* Test History */}
           <Card>
@@ -361,114 +335,41 @@ export default function MyAccountPage() {
                   </Button>
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {attempts.map((attempt) => {
                     const stats = getDetailedStats(attempt)
-                    const remark = stats ? getPerformanceRemark(stats.percentage) : null
                     
                     return (
-                      <Card key={attempt.id} className="border-2 hover:shadow-md transition-shadow duration-200">
-                        <CardContent className="p-6">
+                      <Card key={attempt.id} className="border hover:shadow-md transition-shadow duration-200">
+                        <CardContent className="p-4">
                           {/* Test Header */}
-                          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-4">
-                            <div className="flex-1">
-                              <h3 className="font-bold text-lg text-gray-900 mb-1">{attempt.test.title}</h3>
-                              <p className="text-sm text-gray-600 mb-2">{attempt.test.description || 'General Test'}</p>
-                              
-                              {/* Date and Duration */}
-                              <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
-                                <span className="flex items-center gap-1">
-                                  <Calendar className="h-4 w-4" />
-                                  {new Date(attempt.started_at).toLocaleDateString()}
-                                </span>
-                                <span className="flex items-center gap-1">
-                                  <Clock className="h-4 w-4" />
-                                  {attempt.test.duration_minutes} min
-                                </span>
-                              </div>
-                            </div>
-                            
-                            {/* Status Badge */}
-                            <div className="self-start">
-                              {getStatusBadge(attempt)}
-                            </div>
+                          <div className="mb-3">
+                            <h3 className="font-bold text-lg text-gray-900 mb-1">{attempt.test.title}</h3>
+                            <p className="text-sm text-gray-600">{attempt.test.description || 'General Test'}</p>
+                          </div>
+                          
+                          {/* Date and Status */}
+                          <div className="flex justify-between items-center mb-4">
+                            <span className="text-sm text-gray-500 flex items-center gap-1">
+                              <Calendar className="h-4 w-4" />
+                              {new Date(attempt.started_at).toLocaleDateString()}
+                            </span>
+                            {getStatusBadge(attempt)}
                           </div>
 
-                          {/* Score and Statistics */}
-                          {attempt.status === 'submitted' && stats ? (
-                            <div className="space-y-4">
-                              {/* Score Overview */}
-                              <div className="bg-gray-50 rounded-lg p-4">
-                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
-                                  <div>
-                                    <div className="text-2xl font-bold text-blue-600">{stats.percentage}%</div>
-                                    <div className="text-xs text-gray-500">Score</div>
-                                  </div>
-                                  <div>
-                                    <div className="text-2xl font-bold text-green-600">{stats.correctAnswers}</div>
-                                    <div className="text-xs text-gray-500">Correct</div>
-                                  </div>
-                                  <div>
-                                    <div className="text-2xl font-bold text-red-600">{stats.wrongAnswers}</div>
-                                    <div className="text-xs text-gray-500">Wrong</div>
-                                  </div>
-                                  <div>
-                                    <div className="text-2xl font-bold text-gray-600">{stats.correctAnswers}/{stats.totalQuestions}</div>
-                                    <div className="text-xs text-gray-500">Score</div>
-                                  </div>
-                                </div>
-                              </div>
-
-                              {/* Performance Remark */}
-                              {remark && (
-                                <div className={`p-3 rounded-lg border ${remark.bg} ${remark.border}`}>
-                                  <div className="flex items-center gap-2">
-                                    <Trophy className={`h-4 w-4 ${remark.color}`} />
-                                    <span className={`text-sm font-medium ${remark.color}`}>
-                                      {remark.text}
-                                    </span>
-                                  </div>
-                                </div>
-                              )}
-
-                              {/* Progress Bar */}
-                              <div className="space-y-2">
-                                <div className="flex justify-between text-sm">
-                                  <span className="text-gray-600">Progress</span>
-                                  <span className="font-medium">{stats.correctAnswers}/{stats.totalQuestions}</span>
-                                </div>
-                                <div className="w-full bg-gray-200 rounded-full h-2">
-                                  <div 
-                                    className={`h-2 rounded-full transition-all duration-300 ${
-                                      stats.percentage >= 80 ? 'bg-green-500' :
-                                      stats.percentage >= 60 ? 'bg-yellow-500' : 'bg-red-500'
-                                    }`}
-                                    style={{ width: `${stats.percentage}%` }}
-                                  ></div>
-                                </div>
-                              </div>
-
-                              {/* Action Buttons */}
-                              <div className="flex gap-2 pt-2">
-                                {stats.wrongAnswers > 0 && (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => router.push(`/mistakes/${attempt.id}`)}
-                                    className="flex items-center gap-1 text-red-600 border-red-200 hover:bg-red-50"
-                                  >
-                                    <AlertTriangle className="h-3 w-3" />
-                                    View {stats.wrongAnswers} Mistake{stats.wrongAnswers !== 1 ? 's' : ''}
-                                  </Button>
-                                )}
-                              </div>
-                            </div>
-                          ) : (
-                            /* In Progress Test */
-                            <div className="flex items-center justify-between pt-2">
-                              <div className="text-sm text-gray-600">
-                                Test in progress...
-                              </div>
+                          {/* Action Buttons */}
+                          <div className="flex gap-2">
+                            {attempt.status === 'submitted' && stats && stats.wrongAnswers > 0 ? (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => router.push(`/mistakes/${attempt.id}`)}
+                                className="flex items-center gap-1 text-red-600 border-red-200 hover:bg-red-50"
+                              >
+                                <AlertTriangle className="h-3 w-3" />
+                                View Mistakes
+                              </Button>
+                            ) : attempt.status !== 'submitted' ? (
                               <Button
                                 size="sm"
                                 onClick={() => router.push(`/test/${attempt.test_id}`)}
@@ -476,8 +377,28 @@ export default function MyAccountPage() {
                               >
                                 Continue Test
                               </Button>
-                            </div>
-                          )}
+                            ) : (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled
+                                className="opacity-50"
+                              >
+                                No Mistakes
+                              </Button>
+                            )}
+                            
+                            {attempt.status === 'submitted' && (
+                              <Button
+                                size="sm"
+                                onClick={() => router.push('/account/analytics')}
+                                className="bg-gradient-to-r from-[#002E2C] to-emerald-600 text-white hover:from-[#003d3a] hover:to-emerald-700"
+                              >
+                                <BarChart3 className="h-3 w-3 mr-1" />
+                                View Analytics
+                              </Button>
+                            )}
+                          </div>
                         </CardContent>
                       </Card>
                     )
