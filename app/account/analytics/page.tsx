@@ -428,7 +428,7 @@ export default function AnalyticsPage() {
     return (
       <div className="container mx-auto px-4 py-6 sm:py-8">
         <div className="flex justify-center items-center min-h-[60vh]">
-          <LoadingSpinner size="lg" />
+          <LoadingSpinner className="h-8 w-8" />
         </div>
       </div>
     )
