@@ -13,7 +13,6 @@ import { getCurrentUser, logout } from '@/lib/auth'
 import { AccessControl, UserAccess } from '@/lib/access-control'
 import { Search, ArrowLeft, Lock, User, LogOut, Menu, X, Clock, Calendar, FileText, Building, Cpu, Shirt, AlertTriangle, Flame, Snowflake } from 'lucide-react'
 import { UpgradeDialog } from '@/components/ui/upgrade-dialog'
-import Head from 'next/head'
 
 type Test = {
   id: string
@@ -421,11 +420,7 @@ export default function TestsPage() {
   }
 
   return (
-    <>
-      <Head>
-        <title>{selectedCategory ? 'Tests' : 'Test Categories'} - Rapid Steno Exam</title>
-      </Head>
-      <div className="min-h-screen bg-gradient-to-br from-cyan-50 via-blue-50 to-emerald-50 font-lexend">
+    <div className="min-h-screen bg-gradient-to-br from-cyan-50 via-blue-50 to-emerald-50 font-lexend">
       <header className="bg-white/95 backdrop-blur-lg border-b border-[#002E2C]/10 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Single Line Header */}
@@ -489,19 +484,38 @@ export default function TestsPage() {
             {/* Desktop Navigation - Hidden on Mobile */}
             <div className="hidden md:flex items-center gap-3">
               <Button
-                onClick={() => {
-                  // Materials functionality - disabled for now
+                onClick={async () => {
+                  if (!user) {
+                    router.push('/login')
+                    return
+                  }
+                  
+                  try {
+                    // Check user access for AHC Materials
+                    const userAccess = await accessControl.getUserAccess(user.id)
+                    
+                    if (userAccess.hasAHCPlan) {
+                      router.push('/materials')
+                    } else {
+                      setUpgradeMessage('Currently only AHC Material is available here. Please upgrade to AHC Plan to view the AHC materials.')
+                      setShowUpgradeDialog(true)
+                    }
+                  } catch (error) {
+                    console.error('Error checking AHC Materials access:', error)
+                    setUpgradeMessage('Unable to verify access. Please try again.')
+                    setShowUpgradeDialog(true)
+                  }
                 }}
-                disabled
                 variant="outline"
                 size="sm"
-                className="flex items-center gap-2 border-2 border-orange-400 text-orange-600 bg-orange-50 cursor-not-allowed text-sm px-4 py-2 font-semibold"
+                className="flex items-center gap-2 border-gray-300 text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition-all duration-200 text-sm px-4 py-2"
               >
-                <Lock className="h-4 w-4" />
-                Materials
-                <Badge className="ml-2 text-xs bg-orange-500 text-white animate-pulse">
-                  Soon
-                </Badge>
+                {userAccess?.hasAHCPlan ? (
+                  <FileText className="h-4 w-4" />
+                ) : (
+                  <Lock className="h-4 w-4" />
+                )}
+                AHC Materials
               </Button>
               <Button
                 onClick={() => router.push('/account')}
@@ -541,16 +555,21 @@ export default function TestsPage() {
                     <button
                       onClick={() => {
                         setIsMenuOpen(false)
-                        // Materials functionality - disabled for now
+                        if (userAccess?.hasAHCPlan) {
+                          router.push('/materials')
+                        } else {
+                          setUpgradeMessage('Currently only AHC Material is available here. Please upgrade to AHC Plan to view the AHC materials.')
+                          setShowUpgradeDialog(true)
+                        }
                       }}
-                      disabled
-                      className="w-full px-4 py-2 text-left text-sm text-orange-600 bg-orange-50 hover:bg-orange-100 flex items-center gap-2 cursor-not-allowed font-semibold border-l-4 border-orange-400"
+                      className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-600 flex items-center gap-2 border-l-4 border-transparent hover:border-orange-400"
                     >
-                      <Lock className="h-4 w-4" />
-                      Materials
-                      <Badge className="ml-auto text-xs bg-orange-500 text-white animate-pulse">
-                        Coming Soon
-                      </Badge>
+                      {userAccess?.hasAHCPlan ? (
+                        <FileText className="h-4 w-4" />
+                      ) : (
+                        <Lock className="h-4 w-4" />
+                      )}
+                      AHC Materials
                     </button>
                     <button
                       onClick={() => {
@@ -906,13 +925,13 @@ export default function TestsPage() {
         </div>
       )}
 
+      {/* Upgrade dialog for AHC Materials */}
       <UpgradeDialog
         isOpen={showUpgradeDialog}
         onClose={() => setShowUpgradeDialog(false)}
-        categoryName="Allahabad High Court"
-        userHasGoldPlan={true}
+        categoryName="AHC Materials"
+        userHasGoldPlan={userAccess?.hasGoldPlan}
       />
     </div>
-    </>
   )
 }

@@ -54,6 +54,8 @@ export default function AdminMaterialsPage() {
   const [showCategoryForm, setShowCategoryForm] = useState(false)
   const [newCategoryName, setNewCategoryName] = useState('')
   const [newCategoryDescription, setNewCategoryDescription] = useState('')
+  const [updateError, setUpdateError] = useState('')
+  const [updateSuccess, setUpdateSuccess] = useState('')
   const router = useRouter()
 
   // Form state
@@ -311,27 +313,51 @@ export default function AdminMaterialsPage() {
     e.preventDefault()
     if (!editingMaterial || !formData.title || !formData.pdf_url || !formData.category_id) return
 
+    // Clear previous messages
+    setUpdateError('')
+    setUpdateSuccess('')
     setIsUploading(true)
+    
     try {
+      // Create the update object with only the fields we want to update
+      const updateData = {
+        title: formData.title,
+        description: formData.description,
+        tags: formData.tags,
+        pdf_url: formData.pdf_url,
+        category_id: formData.category_id,
+        // Only include associated_test_id if it's a valid UUID
+        ...(formData.associated_test_id && formData.associated_test_id !== 'none' 
+          ? { associated_test_id: formData.associated_test_id } 
+          : { associated_test_id: null }),
+        status: formData.status,
+        updated_at: new Date().toISOString() // Force update timestamp
+      };
+
       // Update material in Supabase
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('materials')
-        .update({
-          title: formData.title,
-          description: formData.description,
-          tags: formData.tags,
-          pdf_url: formData.pdf_url,
-          category_id: formData.category_id,
-          associated_test_id: formData.associated_test_id === 'none' ? null : formData.associated_test_id,
-          status: formData.status
-        })
+        .update(updateData)
         .eq('id', editingMaterial.id)
+        .select();
 
-      if (error) throw error
+      if (error) {
+        setUpdateError('Failed to update material: ' + error.message)
+        throw error
+      }
 
+      // Set success message
+      setUpdateSuccess(`Material "${formData.title}" updated successfully!`)
+      
       // Reload data to get updated list
       await loadData()
       resetForm()
+      
+      // Close the form after successful update
+      setTimeout(() => {
+        setShowUploadForm(false)
+        setUpdateSuccess('')
+      }, 1500)
     } catch (error) {
       console.error('Error updating material:', error)
     } finally {
@@ -466,7 +492,17 @@ export default function AdminMaterialsPage() {
           </CardHeader>
           {showUploadForm && (
             <CardContent>
-              <form onSubmit={editingMaterial ? handleUpdate : handleSubmit} className="space-y-6">
+              {updateSuccess && (
+                <div className="mb-4 p-3 bg-green-50 border border-green-200 text-green-700 rounded-md">
+                  {updateSuccess}
+                </div>
+              )}
+              {updateError && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-md">
+                  {updateError}
+                </div>
+              )}
+              <form onSubmit={editingMaterial ? handleUpdate : handleSubmit} className="space-y-6" id="materialForm">
                 {/* Title and Category */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>

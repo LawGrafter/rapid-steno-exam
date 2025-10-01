@@ -32,7 +32,7 @@ export function UpgradeDialog({ isOpen, onClose, categoryName, userHasGoldPlan =
   }
 
   const handleUpgrade = () => {
-    // Redirect to payment page
+    // Redirect to payment page with the specific URL provided
     window.open('https://rapidsteno.com/how-to-pay', '_blank')
     onClose()
   }
