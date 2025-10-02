@@ -515,6 +515,15 @@ export default function MaterialsPage() {
                     {getCategoryMaterials(selectedCategory).length} Materials
                   </Badge>
                 </div>
+                
+                {/* Important Notice for Allahabad High Court */}
+                {selectedCategory.includes('Allahabad High Court') && (
+                  <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                    <p className="text-center font-medium text-amber-800">
+                      ⚠️ Important: Every week 1 new subject's notes will be uploaded. As the vacancy is announced, we will speed up the process.
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">

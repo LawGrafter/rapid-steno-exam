@@ -621,6 +621,8 @@ export default function TestsPage() {
         </div>
       </header>
 
+
+
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {!selectedCategory ? (
           // Categories View
@@ -710,6 +712,15 @@ export default function TestsPage() {
         ) : !selectedTopic ? (
           // Topics View for Selected Category
           <>
+            {/* Important Notice for Allahabad High Court */}
+            {categories.find(c => c.id === selectedCategory)?.name.includes('Allahabad High Court') && (
+              <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                <p className="text-center font-medium text-amber-800">
+                  ⚠️ Important: Every week 1 new subject's mock tests will be uploaded. As the vacancy is announced, we will speed up the process.
+                </p>
+              </div>
+            )}
+            
             {(() => {
               const categoryTopics = getTopicsForCategory(selectedCategory)
               return (
