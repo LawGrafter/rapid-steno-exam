@@ -285,7 +285,7 @@ export default function AnalyticsPage() {
       return (
         <div key={category.category} className="mb-8 p-4 border rounded-lg">
           <div className="flex justify-between mb-1">
-            <span className="text-sm font-medium">{category.category}</span>
+            <span className="text-lg font-semibold">{category.category}</span>
             <span className="text-sm font-medium">{category.averageScore}%</span>
           </div>
           <div className="w-full bg-gray-200 rounded-full h-4 mb-4">
@@ -348,37 +348,74 @@ export default function AnalyticsPage() {
     })
   }
 
+  const [searchQuery, setSearchQuery] = useState("")
+  
   // Generate recent performance data
   const generatePerformanceData = () => {
-    // Get the 10 most recent attempts
-    const recentAttempts = [...attempts].slice(0, 10)
+    // Get all attempts for categorization
+    const recentAttempts = [...attempts]
     
-    // Create pairs of attempts for 2 per row
-    const rows = [];
-    for (let i = 0; i < recentAttempts.length; i += 2) {
-      const rowAttempts = recentAttempts.slice(i, i + 2);
-      rows.push(rowAttempts);
-    }
+    // Filter attempts based on search query
+    const filteredAttempts = recentAttempts.filter(attempt => {
+      const testTitle = attempt.test.title.toLowerCase()
+      const categoryName = (attempt.test.test_categories?.name || 'Uncategorized').toLowerCase()
+      const query = searchQuery.toLowerCase()
+      
+      return testTitle.includes(query) || categoryName.includes(query)
+    })
+    
+    // Group attempts by category
+    const attemptsByCategory: { [key: string]: TestAttempt[] } = {}
+    
+    filteredAttempts.forEach(attempt => {
+      const categoryName = attempt.test.test_categories?.name || 'Uncategorized'
+      
+      if (!attemptsByCategory[categoryName]) {
+        attemptsByCategory[categoryName] = []
+      }
+      
+      attemptsByCategory[categoryName].push(attempt)
+    })
+    
+    // Sort categories alphabetically
+    const sortedCategories = Object.keys(attemptsByCategory).sort()
     
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {rows.map((row, rowIndex) => (
-          <React.Fragment key={`row-${rowIndex}`}>
-            {row.map((attempt) => {
-              const totalQuestions = attempt.test.questions?.length || attempt.answers.length;
-              const percentage = totalQuestions > 0 ? Math.round((attempt.total_score / totalQuestions) * 100) : 0;
-              const color = percentage >= 70 ? 'bg-green-500' : percentage >= 50 ? 'bg-yellow-500' : 'bg-red-500';
-              
-              return (
-                <div key={attempt.id} className="p-4 border rounded-lg hover:bg-gray-50 flex flex-col h-full">
-                  <div className="mb-2">
-                    <h4 className="font-medium text-base mb-1">{attempt.test.title}</h4>
-                    <p className="text-sm text-gray-600">{attempt.test.test_categories?.name || 'Uncategorized'}</p>
-                  </div>
-                  <div className="flex items-center justify-between mt-auto">
-                    <div className="flex items-center">
-                      <Button 
-                        className="bg-gradient-to-r from-[#002E2C] to-emerald-600 text-white hover:from-[#003d3a] hover:to-emerald-700"
+      <>
+        <div className="mb-4">
+          <input
+            type="text"
+            placeholder="Search tests or categories..."
+            className="w-full p-2 border rounded-md"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+        
+        {sortedCategories.length === 0 ? (
+          <div className="text-center py-8">
+            <p className="text-gray-600">No tests match your search</p>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {sortedCategories.map(category => (
+              <div key={category} className="space-y-3">
+                <h3 className="font-semibold text-lg border-b pb-2">{category}</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {attemptsByCategory[category].map((attempt) => {
+                    const totalQuestions = attempt.test.questions?.length || attempt.answers.length;
+                    const percentage = totalQuestions > 0 ? Math.round((attempt.total_score / totalQuestions) * 100) : 0;
+                    const color = percentage >= 70 ? 'bg-green-500' : percentage >= 50 ? 'bg-yellow-500' : 'bg-red-500';
+                    
+                    return (
+                      <div key={attempt.id} className="p-4 border rounded-lg hover:bg-gray-50 flex flex-col h-full">
+                        <div className="mb-2">
+                          <h4 className="font-medium text-base mb-1">{attempt.test.title}</h4>
+                        </div>
+                        <div className="flex items-center justify-between mt-auto">
+                          <div className="flex items-center">
+                            <Button 
+                              className="bg-gradient-to-r from-[#002E2C] to-emerald-600 text-white hover:from-[#003d3a] hover:to-emerald-700"
                         size="sm"
                         onClick={() => {
                           setSelectedTest(attempt);
@@ -396,9 +433,12 @@ export default function AnalyticsPage() {
                 </div>
               );
             })}
-          </React.Fragment>
-        ))}
-      </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </>
     );
   }
   

@@ -383,10 +383,16 @@ export default function TestsPage() {
   const getTestsForTopic = (topicId: string) => {
     // Find the topic in categories data
     let topicTests: Test[] = []
+    let isAHCHistoryTopic = false
     
     categories.forEach(category => {
       category.topics?.forEach(topic => {
         if (topic.id === topicId && topic.tests) {
+          // Check if this is Allahabad High Court Ancient History topic
+          isAHCHistoryTopic = 
+            category.name.includes('Allahabad High Court') && 
+            topic.name.includes('Ancient History')
+          
           topicTests = topic.tests.map(test => ({
             ...test,
             topic: { id: topic.id, name: topic.name, description: topic.description },
@@ -395,6 +401,22 @@ export default function TestsPage() {
         }
       })
     })
+    
+    // Sort tests by set number for Allahabad High Court Ancient History
+    if (isAHCHistoryTopic) {
+      topicTests.sort((a, b) => {
+        // Extract set numbers from test titles
+        const getSetNumber = (title: string) => {
+          const match = title.match(/Set\s+(\d+)/i)
+          return match ? parseInt(match[1]) : 999 // Default to high number if no match
+        }
+        
+        const setA = getSetNumber(a.title)
+        const setB = getSetNumber(b.title)
+        
+        return setA - setB // Sort in ascending order
+      })
+    }
     
     if (!searchQuery) return topicTests
     
