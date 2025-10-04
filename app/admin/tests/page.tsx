@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { supabase } from '@/lib/supabase'
-import { ArrowLeft, Plus, FileText, Clock, Calendar, Edit, Trash2, RotateCcw, Search, Filter } from 'lucide-react'
+import { ArrowLeft, Plus, FileText, Clock, Calendar, Edit, Trash2, RotateCcw, Search, Filter, ChevronLeft, ChevronRight } from 'lucide-react'
 
 type Test = {
   id: string
@@ -44,6 +44,10 @@ export default function TestsPage() {
   const [categories, setCategories] = useState<Category[]>([])
   const [topics, setTopics] = useState<Topic[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1)
+  const [testsPerPage] = useState(9)
   
   // Filter states
   const [searchQuery, setSearchQuery] = useState('')
@@ -80,6 +84,8 @@ export default function TestsPage() {
     }
 
     setFilteredTests(filtered)
+    // Reset to first page when filters change
+    setCurrentPage(1)
   }, [tests, searchQuery, selectedCategory, selectedTopic])
 
   const handleCategoryChange = (categoryId: string) => {
@@ -315,70 +321,112 @@ export default function TestsPage() {
             </Link>
           </div>
         ) : (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {filteredTests.map((test) => {
-              const status = getStatusInfo(test)
-              return (
-                <Card key={test.id} className="hover:shadow-md transition-shadow">
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg line-clamp-2">{test.title}</CardTitle>
-                      <Badge className={`${status.color} text-white`}>
-                        {status.label}
-                      </Badge>
-                    </div>
-                    <CardDescription className="line-clamp-2">
-                      {test.description || 'No description'}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex items-center gap-4 text-sm text-gray-600">
-                      <div className="flex items-center gap-1">
-                        <Clock className="h-4 w-4" />
-                        {test.duration_minutes} min
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <FileText className="h-4 w-4" />
-                        {test.question_count || 0}
-                      </div>
-                    </div>
-                    
-                    <div className="text-xs text-gray-500 space-y-1">
-                      <p><span className="font-medium">Category:</span> {test.category?.name || 'Unknown'}</p>
-                      <p><span className="font-medium">Topic:</span> {test.topic?.name || 'Unknown'}</p>
-                      <p>Created: {new Date(test.created_at).toLocaleDateString()}</p>
-                    </div>
+          <>
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {/* Get current tests */}
+              {filteredTests
+                .slice((currentPage - 1) * testsPerPage, currentPage * testsPerPage)
+                .map((test) => {
+                  const status = getStatusInfo(test)
+                  return (
+                    <Card key={test.id} className="hover:shadow-md transition-shadow">
+                      <CardHeader>
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-lg line-clamp-2">{test.title}</CardTitle>
+                          <Badge className={`${status.color} text-white`}>
+                            {status.label}
+                          </Badge>
+                        </div>
+                        <CardDescription className="line-clamp-2">
+                          {test.description || 'No description'}
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="flex items-center gap-4 text-sm text-gray-600">
+                          <div className="flex items-center gap-1">
+                            <Clock className="h-4 w-4" />
+                            {test.duration_minutes} min
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <FileText className="h-4 w-4" />
+                            {test.question_count || 0}
+                          </div>
+                        </div>
+                        
+                        <div className="text-xs text-gray-500 space-y-1">
+                          <p><span className="font-medium">Category:</span> {test.category?.name || 'Unknown'}</p>
+                          <p><span className="font-medium">Topic:</span> {test.topic?.name || 'Unknown'}</p>
+                          <p>Created: {new Date(test.created_at).toLocaleDateString()}</p>
+                        </div>
 
-                    <div className="flex gap-2">
-                      <Link href={`/admin/tests/edit/${test.id}`} className="flex-1">
-                        <Button variant="outline" size="sm" className="w-full">
-                          <Edit className="h-4 w-4 mr-1" />
-                          Edit
-                        </Button>
-                      </Link>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => resetTest(test.id, test.title)}
-                        className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                        title="Reset test - Clear all user attempts"
-                      >
-                        <RotateCcw className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => deleteTest(test.id)}
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              )
-            })}
-          </div>
+                        <div className="flex gap-2">
+                          <Link href={`/admin/tests/edit/${test.id}`} className="flex-1">
+                            <Button variant="outline" size="sm" className="w-full">
+                              <Edit className="h-4 w-4 mr-1" />
+                              Edit
+                            </Button>
+                          </Link>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => resetTest(test.id, test.title)}
+                            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                            title="Reset test - Clear all user attempts"
+                          >
+                            <RotateCcw className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => deleteTest(test.id)}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )
+                })}
+            </div>
+            
+            {/* Pagination */}
+            <div className="flex justify-center items-center mt-8 space-x-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              
+              <div className="flex items-center space-x-1">
+                {Array.from({ length: Math.ceil(filteredTests.length / testsPerPage) }).map((_, index) => (
+                  <Button
+                    key={index}
+                    variant={currentPage === index + 1 ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setCurrentPage(index + 1)}
+                    className={`w-8 h-8 p-0 ${
+                      currentPage === index + 1 ? "bg-[#002E2C] text-white" : ""
+                    }`}
+                  >
+                    {index + 1}
+                  </Button>
+                ))}
+              </div>
+              
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(filteredTests.length / testsPerPage)))}
+                disabled={currentPage === Math.ceil(filteredTests.length / testsPerPage)}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </>
         )}
       </main>
     </div>

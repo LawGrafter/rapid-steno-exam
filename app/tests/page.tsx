@@ -384,6 +384,7 @@ export default function TestsPage() {
     // Find the topic in categories data
     let topicTests: Test[] = []
     let isAHCHistoryTopic = false
+    let isPatnaHighCourt = false
     
     categories.forEach(category => {
       category.topics?.forEach(topic => {
@@ -392,6 +393,9 @@ export default function TestsPage() {
           isAHCHistoryTopic = 
             category.name.includes('Allahabad High Court') && 
             topic.name.includes('Ancient History')
+          
+          // Check if this is Patna High Court category
+          isPatnaHighCourt = category.name.includes('Patna High Court')
           
           topicTests = topic.tests.map(test => ({
             ...test,
@@ -415,6 +419,22 @@ export default function TestsPage() {
         const setB = getSetNumber(b.title)
         
         return setA - setB // Sort in ascending order
+      })
+    }
+    
+    // Sort tests numerically for Patna High Court
+    if (isPatnaHighCourt) {
+      topicTests.sort((a, b) => {
+        // Extract numbers from test titles (like "Mock Test 3")
+        const getTestNumber = (title: string) => {
+          const match = title.match(/Test\s+(\d+)/i)
+          return match ? parseInt(match[1]) : 999 // Default to high number if no match
+        }
+        
+        const numA = getTestNumber(a.title)
+        const numB = getTestNumber(b.title)
+        
+        return numA - numB // Sort in ascending order
       })
     }
     
@@ -469,7 +489,7 @@ export default function TestsPage() {
             {/* Center - Search and Back Button */}
             <div className="flex items-center gap-3 flex-1 max-w-md mx-4">
               {/* Search Box */}
-              <div className="relative flex-1">
+              <div className="relative flex-1 max-w-[200px]">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <input
                   type="text"
@@ -479,6 +499,16 @@ export default function TestsPage() {
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#002E2C] focus:border-transparent bg-white/80 backdrop-blur-sm text-sm placeholder-gray-500"
                 />
               </div>
+              
+              {/* Leaderboard Button */}
+              <Button
+                onClick={() => router.push('/leaderboard')}
+                variant="default"
+                size="sm"
+                className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white transition-all duration-200 text-sm px-3 py-2 whitespace-nowrap"
+              >
+                <span>Leaderboard</span>
+              </Button>
               
               {selectedTopic ? (
                 <Button
@@ -716,7 +746,7 @@ export default function TestsPage() {
             {categories.find(c => c.id === selectedCategory)?.name.includes('Allahabad High Court') && (
               <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
                 <p className="text-center font-medium text-amber-800">
-                  ⚠️ Important: Every week 1 new subject's mock tests will be uploaded. As the vacancy is announced, we will speed up the process.
+                  ⚠️ Important: In Every 2-3 Days new subject's mock tests will be uploaded. As the vacancy is announced, we will speed up the process.
                 </p>
               </div>
             )}

@@ -65,19 +65,30 @@ export default function ResultsPage() {
 
   const fetchData = async () => {
     try {
-      // Fetch tests
+      // Fetch tests with their categories
       const { data: testsData, error: testsError } = await supabase
         .from('tests')
-        .select('id, title')
+        .select(`
+          id, 
+          title,
+          category_id,
+          test_categories(id, name)
+        `)
         .order('title')
 
       if (testsError) throw testsError
       setTests(testsData || [])
 
-      // Set empty categories since column doesn't exist
-      setCategories([])
+      // Fetch all categories
+      const { data: categoriesData, error: categoriesError } = await supabase
+        .from('test_categories')
+        .select('id, name')
+        .order('name')
+        
+      if (categoriesError) throw categoriesError
+      setCategories(categoriesData?.map(cat => cat.name) || [])
 
-      // Fetch attempts with test questions and answers to get total count
+      // Fetch attempts with test questions, answers, and category information
       const { data: attemptsData, error: attemptsError } = await supabase
         .from('attempts')
         .select(`
@@ -85,6 +96,8 @@ export default function ResultsPage() {
           users (full_name),
           tests (
             title,
+            category_id,
+            test_categories(id, name),
             questions (id)
           ),
           answers (is_correct, chosen_option_id)
@@ -426,7 +439,7 @@ export default function ResultsPage() {
                           </td>
                           <td className="py-3 px-2">
                             <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-full">
-                              {(attempt.tests as any)?.category || 'General'}
+                              {attempt.tests?.test_categories?.name || 'Uncategorized'}
                             </span>
                           </td>
                           <td className="py-3 px-2 text-gray-600">
