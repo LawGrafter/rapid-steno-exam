@@ -11,7 +11,7 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { supabase } from '@/lib/supabase'
 import { getCurrentUser, logout } from '@/lib/auth'
 import { AccessControl, UserAccess } from '@/lib/access-control'
-import { Search, ArrowLeft, Lock, User, LogOut, Menu, X, Clock, Calendar, FileText, Building, Cpu, Shirt, AlertTriangle, Flame, Snowflake } from 'lucide-react'
+import { Search, ArrowLeft, Lock, User, LogOut, Menu, X, Clock, Calendar, FileText, Building, Cpu, Shirt, AlertTriangle, Flame, Snowflake, BookOpen } from 'lucide-react'
 import { UpgradeDialog } from '@/components/ui/upgrade-dialog'
 
 type Test = {
@@ -867,18 +867,51 @@ export default function TestsPage() {
                               </div>
                             </div>
                             
-                            {/* Action Button */}
-                            <button
-                              onClick={() => getTestStatus(test).canStart && handleStartTest(test.id)}
-                              disabled={!getTestStatus(test).canStart}
-                              className={`w-full py-4 px-6 rounded-xl font-semibold text-lg transition-all duration-200 ${
-                                getTestStatus(test).canStart
-                                  ? 'bg-gradient-to-r from-[#002E2C] to-emerald-600 hover:from-[#003d3a] hover:to-emerald-700 text-white shadow-lg hover:shadow-xl transform hover:-translate-y-0.5'
-                                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                              }`}
-                            >
-                              {getTestStatus(test).label}
-                            </button>
+                            {/* Action Buttons */}
+                            {getTestStatus(test).label === 'Test Submitted' ? (
+                              <div className="flex gap-3">
+                                <button
+                                  disabled
+                                  className="flex-1 py-4 px-4 rounded-xl font-semibold text-base bg-gray-300 text-gray-500 cursor-not-allowed"
+                                >
+                                  Submitted
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    // Find the submitted attempt for this test
+                                    const submittedAttempt = attempts.find(a => a.test_id === test.id && a.status === 'submitted')
+                                    if (submittedAttempt) {
+                                      router.push(`/revision/${submittedAttempt.id}`)
+                                    }
+                                  }}
+                                  className="flex-1 py-4 px-4 rounded-xl font-semibold text-base text-white shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
+                                  style={{
+                                    background: 'linear-gradient(to right, #01342F, #078F65)',
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.background = 'linear-gradient(to right, #012b26, #066b4f)'
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.background = 'linear-gradient(to right, #01342F, #078F65)'
+                                  }}
+                                >
+                                  <BookOpen className="inline-block h-4 w-4 mr-2" />
+                                  Revision
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => getTestStatus(test).canStart && handleStartTest(test.id)}
+                                disabled={!getTestStatus(test).canStart}
+                                className={`w-full py-4 px-6 rounded-xl font-semibold text-lg transition-all duration-200 ${
+                                  getTestStatus(test).canStart
+                                    ? 'bg-gradient-to-r from-[#002E2C] to-emerald-600 hover:from-[#003d3a] hover:to-emerald-700 text-white shadow-lg hover:shadow-xl transform hover:-translate-y-0.5'
+                                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                }`}
+                              >
+                                {getTestStatus(test).label}
+                              </button>
+                            )}
                           </div>
                         )
                       })}

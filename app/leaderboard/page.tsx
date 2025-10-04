@@ -35,14 +35,17 @@ export default function LeaderboardPage() {
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [currentUserRank, setCurrentUserRank] = useState<UserScore | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [showRefreshPopup, setShowRefreshPopup] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
     const user = getCurrentUser()
     if (user) {
       setCurrentUser(user)
-      // Always fetch fresh data on component mount
-      fetchLeaderboardData()
+      // Show refresh popup when page loads
+      setShowRefreshPopup(true)
+      // Load initial data without forcing refresh
+      fetchLeaderboardData(false)
     } else {
       router.push('/login')
     }
@@ -53,7 +56,7 @@ export default function LeaderboardPage() {
     // Refresh data when the page becomes visible (user returns to tab)
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible' && currentUser) {
-        fetchLeaderboardData()
+        fetchLeaderboardData(true)
       }
     }
     
@@ -72,9 +75,27 @@ export default function LeaderboardPage() {
     }
   }, [currentUser])
 
-  const fetchLeaderboardData = async () => {
-    setIsLoading(true)
+  const handleRefreshFromPopup = async () => {
+    setShowRefreshPopup(false)
+    await fetchLeaderboardData(true)
+  }
+
+  const handleSkipRefresh = () => {
+    setShowRefreshPopup(false)
+  }
+
+  const fetchLeaderboardData = async (forceRefresh = false) => {
+    if (forceRefresh) {
+      setIsLoading(true)
+    }
     try {
+      // Clear existing data to ensure fresh fetch
+      if (forceRefresh) {
+        setCurrentUserRank(null)
+        setUserScores([])
+        setTopUsers([])
+      }
+      
       // Fetch all completed test attempts with test data
       const { data: attempts, error: attemptsError } = await supabase
         .from('attempts')
@@ -94,6 +115,7 @@ export default function LeaderboardPage() {
           )
         `)
         .eq('status', 'submitted')
+        .order('created_at', { ascending: false })
       
       if (attemptsError) throw attemptsError
 
@@ -168,17 +190,29 @@ export default function LeaderboardPage() {
         { id: 'dummy35', name: 'Harish Mehta', score: 56, tests: 4, avg: 51 }
       ];
         
-      // Add all dummy users to the map
+      // Add all dummy users to the map (randomize scores between 10-45)
+      const MIN_FAKE_SCORE = 10
+      const MAX_FAKE_SCORE = 45
+
+      // Function to generate random score between min and max
+      const getRandomScore = (min: number, max: number) => {
+        return Math.floor(Math.random() * (max - min + 1)) + min
+      }
+
       indianDummyUsers.forEach(user => {
         // Only add dummy user if this user ID doesn't already exist
         if (!userScoresMap.has(user.id)) {
+          // Generate random scores between 10 and 45 for both best and average
+          const randomBest = getRandomScore(MIN_FAKE_SCORE, MAX_FAKE_SCORE)
+          const randomAvg = getRandomScore(MIN_FAKE_SCORE, MAX_FAKE_SCORE)
+
           userScoresMap.set(user.id, {
             id: user.id,
             user_id: user.id,
             full_name: user.name,
-            best_score: user.score,
+            best_score: randomBest,
             tests_completed: user.tests,
-            average_score: user.avg
+            average_score: randomAvg
           });
         }
       });
@@ -229,7 +263,7 @@ export default function LeaderboardPage() {
             <h1 className="text-xl md:text-3xl font-bold tracking-tight">Leaderboard</h1>
           </div>
           <Button
-            onClick={() => fetchLeaderboardData()}
+            onClick={() => fetchLeaderboardData(true)}
             variant="outline"
             size="sm"
             className="text-black border-white hover:bg-white/20 rounded-full px-2 md:px-4 text-xs md:text-sm"
@@ -500,6 +534,67 @@ export default function LeaderboardPage() {
           </>
         )}
       </main>
+
+      {/* Refresh Data Popup */}
+      {showRefreshPopup && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 overflow-hidden">
+            {/* Header */}
+            <div className="p-6 text-center" style={{ background: 'linear-gradient(to right, #01342F, #078F65)' }}>
+              <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Trophy className="h-8 w-8 text-white" />
+              </div>
+              <h3 className="font-bold text-xl text-white">Refresh Leaderboard Data</h3>
+              <p className="text-white/80 text-sm mt-2">Get the latest rankings and scores</p>
+            </div>
+
+            {/* Content */}
+            <div className="p-6">
+              <div className="text-center mb-6">
+                <p className="text-gray-700 mb-4">
+                  To see the most up-to-date rankings and your current position, we recommend refreshing the leaderboard data.
+                </p>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                  <p className="text-blue-800 text-sm">
+                    ✨ This will fetch the latest test results and update all rankings
+                  </p>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button
+                  onClick={handleRefreshFromPopup}
+                  className="flex-1 text-white shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
+                  style={{
+                    background: 'linear-gradient(to right, #01342F, #078F65)',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'linear-gradient(to right, #012b26, #066b4f)'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'linear-gradient(to right, #01342F, #078F65)'
+                  }}
+                >
+                  <Trophy className="h-4 w-4 mr-2" />
+                  Refresh Data Now
+                </Button>
+                <Button
+                  onClick={handleSkipRefresh}
+                  variant="outline"
+                  className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-50"
+                >
+                  Skip for Now
+                </Button>
+              </div>
+              
+              <p className="text-xs text-gray-500 text-center mt-4">
+                You can also refresh data anytime using the "Refresh Data" button in the header
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
