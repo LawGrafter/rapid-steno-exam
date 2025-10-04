@@ -439,7 +439,7 @@ export default function ResultsPage() {
                           </td>
                           <td className="py-3 px-2">
                             <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-full">
-                              {attempt.tests?.test_categories?.name || 'Uncategorized'}
+                              {attempt.tests?.category || 'Uncategorized'}
                             </span>
                           </td>
                           <td className="py-3 px-2 text-gray-600">
