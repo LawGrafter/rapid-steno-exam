@@ -8,6 +8,9 @@
     "start": "next start",
     "lint": "next lint"
   },
+  "devDependencies": {
+    "@storybook/react": "^7.6.17"
+  },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
     "@next/swc-wasm-nodejs": "13.5.1",
