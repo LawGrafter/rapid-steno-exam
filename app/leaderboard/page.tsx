@@ -112,7 +112,7 @@ export default function LeaderboardPage() {
             userScoresMap.set(userId, {
               id: userId,
               user_id: userId,
-              full_name: attempt.user?.full_name || 'Unknown User',
+              full_name: (attempt.user && typeof attempt.user === 'object' && !Array.isArray(attempt.user) && 'full_name' in attempt.user) ? (attempt.user as any).full_name || 'Unknown User' : 'Unknown User',
               best_score: percentage,
               tests_completed: 1,
               average_score: percentage
@@ -258,7 +258,7 @@ export default function LeaderboardPage() {
               <div className="flex flex-col md:flex-row justify-center items-center md:items-end gap-6 md:gap-8 h-auto md:h-80">
                 {topUsers.map((user, index) => {
                   // Define position styles based on user rank
-                  const rankStyles = {
+                  const rankStyles: Record<number, { order: number; height: string; bgGradient: string; icon: JSX.Element; width: string }> = {
                     1: { 
                       order: 1, 
                       height: 'h-80', 
@@ -310,7 +310,8 @@ export default function LeaderboardPage() {
                   }
                   
                   // Get position style based on user's actual rank
-                  const position = rankStyles[user.rank]
+                  const userRank = user.rank || 1
+                  const position = rankStyles[userRank] || rankStyles[1]
                   
                   return (
                     <div 
@@ -336,7 +337,7 @@ export default function LeaderboardPage() {
                             </div>
                           </div>
                           <p className="font-bold text-white text-2xl mb-1 truncate">{user.full_name}</p>
-                          <p className="text-white font-bold text-xl bg-white/20 py-1 px-3 rounded-full inline-block shadow-inner">{user.rank}{getOrdinalSuffix(user.rank)} Rank</p>
+                          <p className="text-white font-bold text-xl bg-white/20 py-1 px-3 rounded-full inline-block shadow-inner">{user.rank || 1}{getOrdinalSuffix(user.rank || 1)} Rank</p>
                         </div>
                         
                         {/* Stats */}
@@ -448,12 +449,12 @@ export default function LeaderboardPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {userScores.filter(user => user.rank >= 4).map((user) => (
+                      {userScores.filter(user => (user.rank || 1) >= 4).map((user) => (
                         <tr 
                           key={user.id} 
                           className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${user.user_id === currentUser?.id ? 'bg-[#078F65]/20 font-bold border-l-4 border-l-[#078F65]' : ''}`}
                         >
-                          <td className="p-2 md:p-4 font-medium text-xs md:text-base">{user.rank}{getOrdinalSuffix(user.rank)} Rank</td>
+                          <td className="p-2 md:p-4 font-medium text-xs md:text-base">{user.rank || 1}{getOrdinalSuffix(user.rank || 1)} Rank</td>
                           <td className="p-2 md:p-4">
                             <div className="flex items-center">
                               <div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-medium mr-1 md:mr-3 text-xs md:text-base">
