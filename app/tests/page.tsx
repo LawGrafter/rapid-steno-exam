@@ -641,7 +641,7 @@ export default function TestsPage() {
                       className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-red-50 hover:text-red-600 flex items-center gap-2"
                     >
                       <LogOut className="h-4 w-4" />
-                      Logout
+                      Logout System
                     </button>
                   </div>
                 </div>
