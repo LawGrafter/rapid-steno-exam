@@ -8,10 +8,12 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
+import { InteractiveLoader } from '@/components/ui/interactive-loader'
+import { useLoadingProgress } from '@/hooks/use-loading-progress'
 import { supabase } from '@/lib/supabase'
 import { getCurrentUser, logout } from '@/lib/auth'
 import { AccessControl, UserAccess } from '@/lib/access-control'
-import { Search, ArrowLeft, Lock, User, LogOut, Menu, X, Clock, Calendar, FileText, Building, Cpu, Shirt, AlertTriangle, Flame, Snowflake, BookOpen } from 'lucide-react'
+import { Search, ArrowLeft, Lock, User, LogOut, Menu, X, Clock, Calendar, FileText, Building, Cpu, Shirt, AlertTriangle, Flame, Snowflake, BookOpen, Database, Users, CheckCircle } from 'lucide-react'
 import { UpgradeDialog } from '@/components/ui/upgrade-dialog'
 
 type Test = {
@@ -84,6 +86,9 @@ export default function TestsPage() {
   const [upgradeMessage, setUpgradeMessage] = useState('')
   const [showCountdown, setShowCountdown] = useState(false)
   const [countdown, setCountdown] = useState(5)
+  
+  // Initialize loading progress
+  const loadingProgress = useLoadingProgress()
   
   // Initialize AccessControl
   const accessControl = new AccessControl(supabase)
@@ -158,9 +163,22 @@ export default function TestsPage() {
     try {
       setIsCategoriesLoading(true)
       
-      // Fetch categories with nested topics and tests using the new API
+      // Initialize loading steps
+      loadingProgress.initializeSteps([
+        { id: 'database', label: 'Connecting to database' },
+        { id: 'categories', label: 'Fetching categories' },
+        { id: 'topics', label: 'Loading topics and tests' },
+        { id: 'finalizing', label: 'Finalizing data' }
+      ])
+      
+      // Step 1: Database connection (simulated)
+      await new Promise(resolve => setTimeout(resolve, 500))
+      loadingProgress.completeStep('database')
+      
+      // Step 2: Fetch categories with nested topics and tests using the new API
       const response = await fetch('/api/categories')
       if (!response.ok) throw new Error('Failed to fetch categories')
+      loadingProgress.completeStep('categories')
       
       const categoriesData: Category[] = await response.json()
       
@@ -180,6 +198,9 @@ export default function TestsPage() {
           }
         })
       })
+      
+      // Step 3: Complete topics loading
+      loadingProgress.completeStep('topics')
       
       // Get question counts for each test
       const testsWithCount = await Promise.all(
@@ -204,6 +225,9 @@ export default function TestsPage() {
       setCategories(categoriesData)
       setFilteredCategories(categoriesData)
       setTests(testsWithCount)
+      
+      // Step 4: Finalize data
+      loadingProgress.completeStep('finalizing')
       
     } catch (error) {
       console.error('Error fetching data:', error)
@@ -696,11 +720,13 @@ export default function TestsPage() {
 
             {/* Categories Grid */}
             {isCategoriesLoading ? (
-              <div className="text-center py-16 bg-white/95 backdrop-blur-lg rounded-xl shadow-lg border border-[#002E2C]/10">
-                <LoadingSpinner className="h-16 w-16 mx-auto mb-6" />
-                <h3 className="text-xl font-semibold text-[#002E2C] mb-3">Loading Categories</h3>
-                <p className="text-gray-600">Please wait while we fetch the test categories...</p>
-              </div>
+              <InteractiveLoader 
+                title="Loading Categories"
+                subtitle="Please wait while we fetch the test categories..."
+                isControlled={true}
+                progress={loadingProgress.progress}
+                onComplete={() => setIsCategoriesLoading(false)}
+              />
             ) : getFilteredCategories().length === 0 ? (
               <div className="text-center py-16 bg-white/95 backdrop-blur-lg rounded-xl shadow-lg border border-[#002E2C]/10">
                 <FileText className="h-16 w-16 text-gray-400 mx-auto mb-6" />
